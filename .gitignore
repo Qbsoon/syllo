@@ -1,0 +1,4 @@
+.venv
+llama/
+models/
+__pycache__/
