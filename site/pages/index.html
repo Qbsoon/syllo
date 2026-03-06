@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SI-logizm</title>
+    <link rel="stylesheet/less" href="styles/main.less" />
+    <script src="https://cdn.jsdelivr.net/npm/less"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>SI-logizm</h1>
+
+        <div class="field">
+            <label for="syll">Treść sylogizmu</label>
+            <textarea id="syll" rows="4" placeholder="Wprowadź sylogizm…"></textarea>
+        </div>
+
+        <div class="field">
+            <label for="type">Typ rozważania</label>
+            <select id="type">
+                <option value="0">Sprawdzenie poprawności logistycznej</option>
+                <option value="1">Stworzenie wniosku do przesłanek</option>
+            </select>
+        </div>
+
+        <button id="send">Wyślij</button>
+
+        <p id="status"><span id="spinner" class="spinner hidden"></span><span id="status-text"></span></p>
+
+        <div class="field">
+            <label for="result">Wynik</label>
+            <textarea id="result" rows="6" readonly placeholder="Tu pojawi się wynik…"></textarea>
+        </div>
+    </div>
+
+    <script src="scripts/main.js"></script>
+</body>
+</html>
