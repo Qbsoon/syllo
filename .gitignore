@@ -4,3 +4,4 @@ models/
 __pycache__/
 site/uploads/*
 !site/uploads/template.csv
+site/NLSAT_engine/history/*
