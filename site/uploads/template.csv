@@ -1,0 +1,3 @@
+premises,conclusion,valid
+"All A is B. All B is C.","All A is C.",1
+"All A is B. All C is B.","All B is D.",0

@@ -11,9 +11,19 @@
     <div class="container">
         <h1>SI-logizm</h1>
 
-        <div class="field">
+        <div class="toggle-mode">
+            <button class="mode-btn active" id="modeText">Tekst</button>
+            <button class="mode-btn" id="modeFile">Plik</button>
+        </div>
+
+        <div class="field type-one">
             <label for="syll">Treść sylogizmu</label>
             <textarea id="syll" rows="4" placeholder="Wprowadź sylogizm…"></textarea>
+        </div>
+
+        <div class="field field-inline type-file hidden">
+            <input type="text" id="syllFile" placeholder="Wgraj plik csv" readonly>
+            <button id="syllUpload">Wgraj</button>
         </div>
 
         <div class="field">
@@ -24,15 +34,29 @@
             </select>
         </div>
 
+        <div class="field">
+            <label for="model">Model</label>
+            <select id="model">
+                <option value="qwen3_14b_q5km">Qwen3-14B-Q5_K_M</option>
+            </select>
+        </div>
+
         <button id="send">Wyślij</button>
 
         <p id="status"><span id="spinner" class="spinner hidden"></span><span id="status-text"></span></p>
 
-        <div class="field">
+        <div class="field type-one">
             <label for="result">Wynik</label>
             <textarea id="result" rows="6" readonly placeholder="Tu pojawi się wynik…"></textarea>
         </div>
+
+        <div class="field hidden">
+            <label for="resultFile">Wyniki</label>
+            <a href="" downlad="" id="resultFile">Pobierz wyniki</a>
+        </div>
     </div>
+
+    <input type="file" id="uploadDialog" accept=".csv" style="display:none;" />
 
     <script src="scripts/main.js"></script>
 </body>

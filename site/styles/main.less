@@ -60,6 +60,32 @@ h1 {
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
+
+    input[type="text"] {
+        flex: 1;
+        padding: 12px 14px;
+        font-family: @font;
+        font-size: 0.95rem;
+        color: @text;
+        background: @bg;
+        border: 1px solid @border;
+        border-radius: 8px;
+        outline: none;
+        margin-top: 26px;
+
+        &:focus {
+            border-color: @accent;
+        }
+    }
+
+    button {
+        width: auto;
+        padding: 12px 18px;
+        margin-bottom: 0;
+        margin-top: 26px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
 }
 
 textarea, select {
@@ -150,8 +176,8 @@ button {
     animation: spin 0.8s linear infinite;
 }
 
-.spinner.hidden {
-    display: none;
+.hidden {
+    display: none !important;
 }
 
 @-webkit-keyframes spin {
@@ -162,4 +188,47 @@ button {
 }
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+.toggle-mode {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+
+    .mode-btn {
+        flex: 1;
+        margin-bottom: 0;
+        background: @bg;
+        color: @text-muted;
+        border: 1px solid @border;
+        font-weight: 500;
+
+        &:hover:not(:disabled) {
+            background: @border;
+        }
+
+        &.active {
+            background: @accent;
+            color: #fff;
+            border-color: @accent;
+        }
+    }
+}
+
+.field a {
+    display: inline-block;
+    color: @accent;
+    text-decoration: none;
+    font-size: 0.95rem;
+
+    &:hover {
+        color: @accent-hover;
+        text-decoration: underline;
+    }
+}
+
+.field-inline {
+    display: flex;
+    gap: 8px;
+    align-items: center;
 }

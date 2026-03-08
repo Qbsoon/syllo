@@ -2,3 +2,5 @@
 llama/
 models/
 __pycache__/
+site/uploads/*
+!site/uploads/template.csv
