@@ -30,7 +30,7 @@ import numpy as np
 import pandas as pd
 
 from nltk.parse.generate import generate
-from fragments import (
+from .fragments import (
   SyllogisticTemplates,
   RelationalSyllogiticTemplates, 
   RelativeClausesTemplates, 
