@@ -37,7 +37,7 @@
 
     sendBtn.addEventListener("click", async () => {
         if (cooldown) {
-            statusEl.textContent = "Odczekaj 3 sekundy między zapytaniami.";
+            statusText.textContent = "Odczekaj 3 sekundy między zapytaniami.";
             return;
         }
 
@@ -68,7 +68,7 @@
                 spinner.classList.add("hidden");
 
                 if (res.status === 429) {
-                    statusEl.textContent = "Ograniczenie przepustowości - poczekaj 3 sekundy.";
+                    statusText.textContent = "Ograniczenie przepustowości - poczekaj 3 sekundy.";
                 } else if (res.ok) {
                     const data = await res.json();
                     resultEl.value = data.result;
@@ -79,7 +79,7 @@
             } catch (err) {
                 clearInterval(timer);
                 spinner.classList.add("hidden");
-                statusEl.textContent = "Network error.";
+                statusText.textContent = "Network error.";
             }
 
             setTimeout(() => {
@@ -116,7 +116,7 @@
                     spinner.classList.add("hidden");
 
                     if (response.status === 429) {
-                        statusEl.textContent = "Ograniczenie przepustowości - poczekaj 3 sekundy.";
+                        statusText.textContent = "Ograniczenie przepustowości - poczekaj 3 sekundy.";
                     }
 
                     const result = await response.json()
@@ -132,7 +132,7 @@
                 } catch (err) {
                     clearInterval(timer);
                     spinner.classList.add("hidden");
-                    statusEl.textContent = "Network error.";
+                    statusText.textContent = "Network error.";
                 }
 
                 setTimeout(() => {

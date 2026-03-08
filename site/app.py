@@ -31,6 +31,15 @@ async def index():
     return await render_template("index.html")
 
 
+# --- TODO: Jakub ---
+## stype 2 - Sprawdzenie poprawności jako 0/1
+## Pobieranie template
+## Wyświetlanie tabeli wyników
+## Czy logowanie KUL?
+## Ładniejsze "Pobierz wyniki"
+## Logowanie pojedynczych zapytań
+
+
 # --- Process types/models function ---
 async def figure_out(model, stype, syll, conc = ''):
     reply = 'Something went wrong.'
