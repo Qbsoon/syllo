@@ -122,20 +122,57 @@ async def remote_prompt(messages, model):
 
 
 # --- Generate syllogism function ---
-## TODO: Martin
-## Otrzymuje: num - liczba sylogizmów, sampling - zawartość sampling file, min_a, max_a - liczby tak jak w generatorze
-## Katalog biblioteki, w którym są te jej wymagane dwa pliki .py i podkatalog 'history'
-## Odpytuje plik biblioteki generowania
-## Zakładamy myślę, że zawsze jest tryb 'Syllogism', chociaż ewentualnie można dodać w parametry przekazywane do funkcji generate syllo argument 'mode == "Syllogism" ' i wtedy będzie z domyślną wartością, której nie będziemy musieli ustawiać, ale będzie w razie czego można dostosować
-## Wczytanie biblioteki zmienione tak, żeby w wywołaniu przyjmowało sampling jako treść json 
-## Końcówka funkcji głównej kodu biblioteki zmieniona tak, żeby poza zapisywaniem do csv, zwracało też w return wyniki
-## Zapis csv do katalogu history/ w katalogu biblioteki, nazwy plików to może być na przykład data i godzina w formacie "rrrr-MM-dd_HH:mm:ss"
-## Najlepiej żeby potem funkcja generate_syllo zwracała tablicę obiektów [{'premises': '', 'conclusion': '', 'sat': 0/1}, {...}, ...], ale jeśli tak wolisz, to DataFramem też w porządku zamiast json
-## Importy zapisz na początku funkcji generate_syllo
-## Daj znać, jeśli wersje jakichś bibliotek mają być nie najnowsze, ale konkretne
-## Daj znać, jeśli czegoś dodatkowego ci potrzeba, albo pomocy z czymś
-async def generate_syllo(num, sampling, min_a, max_a):
+from typing import Any, Dict, List, Union
+
+async def generate_syllo(
+    num: int, 
+    sampling: Union[str, List[Dict[str, Any]]], 
+    min_a: int, 
+    max_a: int
+) -> List[Dict[str, Any]]:
+    """Generates syllogisms using the NL-SAT engine and saves to history.
+
+    Args:
+        num: Number of syllogisms to generate.
+        sampling: Sampling data (JSON string or list).
+        min_a: Minimum unary predicates.
+        max_a: Maximum unary predicates.
+
+    Returns:
+        List[Dict[str, Any]]: Array of objects with premises, conclusion, and sat status.
+    """
+    import os
+    from datetime import datetime
+    import asyncio
+    from NLSAT_engine.data_construction import run_engine
+
+    engine_path = os.path.join("NLSAT_engine")
+    history_path = os.path.join(engine_path, "history")
+    os.makedirs(history_path, exist_ok=True)
+
+    # Use asyncio.to_thread to run the blocking run_engine function without blocking the event loop
+    df = await asyncio.to_thread(
+        run_engine, 
+        num_datapoints=num, 
+        sampling_data=sampling, 
+        fragment="syllogistic", 
+        min_a=min_a, 
+        max_a=max_a
+    )
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    file_name = f"{timestamp}.csv"
+    df.to_csv(os.path.join(history_path, file_name), index=False)
+
     result = []
+    for _, row in df.iterrows():
+        sentences = row['sentences']
+        result.append({
+            'premises': sentences[:-1] if len(sentences) > 1 else sentences,
+            'conclusion': sentences[-1] if len(sentences) > 1 else "",
+            'sat': 1 if row['sat'] == 'sat' else 0
+        })
+
     return result
 
 
