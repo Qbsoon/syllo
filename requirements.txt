@@ -1,2 +1,7 @@
 groq
+pandas
 python-dotenv
+quart
+quart_rate_limiter
+requests
+uvicorn
