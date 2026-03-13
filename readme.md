@@ -7,3 +7,7 @@ Installation steps:
  4. Launch with command "python site/app.py"  
 (adjust all above paths based on the directory from which you are running these commands)  
 Project was tested & run using Python 3.12.3
+
+Optional configuration:
+ - You can set remote groq model values in "REMOTE_MODELS" list in app.py. Same for local llama.cpp models in "LOCAL_MODELS"
+ - You can adjust default prompt options by modifying if/elif/else structure in the "figure_out" function in the "app.py" file and 'select id="type"' options in html.
