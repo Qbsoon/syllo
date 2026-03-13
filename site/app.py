@@ -138,7 +138,7 @@ async def do_more_logic():
 # --- Local AI function ---
 async def local_prompt(messages):
 	async with httpx.AsyncClient() as client:
-		response = await client.post(LCPP_URL, json={'messages': messages, 'max_tokens': -1}, timeout=240.0)
+		response = await client.post(LCPP_URL, json={'messages': messages, 'max_tokens': -1}, timeout=2400.0)
 	reply = response.json()['choices'][0]['message']['content']
 	if "</think>" in reply:
 		reply = reply.split("</think>")[1].strip()
@@ -158,8 +158,6 @@ async def remote_prompt(messages, model):
     )
     reply = chat_completion.choices[0].message.content
     return reply
-	reply = 'placeholder'
-	return reply
 
 
 # --- Generate syllogism function ---
