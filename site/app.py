@@ -10,14 +10,21 @@ import uvicorn
 from datetime import datetime
 import pandas as pd
 from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
+from groq import Groq
 import asyncio
 from time import time
 import traceback
 
+# reads variables from a .env file and sets them in os.environ
+load_dotenv()
 
 # --- 'Static' values ---
 LOCAL_MODELS = ['qwen3_14b_q5km']
-REMOTE_MODELS = []
+REMOTE_MODELS = ['llama-3.3-70b-versatile', 
+                 'openai/gpt-oss-20b', 
+                 'openai/gpt-oss-120b', 
+                 'qwen/qwen3-32b']
 UPLOAD_ARCHIVE = "uploads"
 LCPP_URL = "http://127.0.0.1:51791/v1/chat/completions"
 
@@ -139,14 +146,18 @@ async def local_prompt(messages):
 
 
 # --- Remote AI function ---
-## TODO: ADAM
-## Otrzymuje tablicę obiektów json: [{'role': 'system', 'content': 'system_prompt'}, {'role': 'user', 'content': 'user_prompt'}] i nazwę/identyfikator modelu
-## Odpytuje wybrany model groq i zwraca odpowiedź
-## Format wartości zmiennej 'model' taki jak ci odpowiada, spisz tylko potem jakie wartości dozwolone mają być przekazywane w tej zmiennej
-## Importy zapisz na początku funkcji remote_prompt
-## Daj znać, jeśli wersje jakichś bibliotek mają być nie najnowsze, ale konkretne
-## Daj znać, jeśli czegoś dodatkowego ci potrzeba, albo pomocy z czymś
 async def remote_prompt(messages, model):
+    client = Groq(
+        api_key=os.environ.get("GROQ_API_KEY"),
+    )
+
+    chat_completion = client.chat.completions.create(
+        messages=messages,
+        model=model,
+        include_reasoning=False
+    )
+    reply = chat_completion.choices[0].message.content
+    return reply
 	reply = 'placeholder'
 	return reply
 
