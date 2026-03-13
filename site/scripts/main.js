@@ -14,7 +14,8 @@
     //Output
     const resultEl = document.getElementById("result");
     const spinner = document.getElementById("spinner");
-    const statusText = document.getElementById("status-text");
+    const tStatusText = document.getElementById("time-status-text");
+    const iStatusText = document.getElementById("i-status-text");
     const resultFile = document.getElementById("resultFile");
 
     // Przełączniki Tekst/Plik
@@ -37,7 +38,7 @@
 
     sendBtn.addEventListener("click", async () => {
         if (cooldown) {
-            statusText.textContent = "Odczekaj 3 sekundy między zapytaniami.";
+            tStatusText.textContent = "Odczekaj 3 sekundy między zapytaniami.";
             return;
         }
 
@@ -48,10 +49,10 @@
 
             spinner.classList.remove("hidden");
             let elapsed = 0;
-            statusText.textContent = " Przetwarzanie... 0.0s";
+            tStatusText.textContent = " Przetwarzanie... 0.0s";
             const timer = setInterval(() => {
                 elapsed += 100;
-                statusText.textContent = ` Przetwarzanie... ${(elapsed / 1000).toFixed(1)}s`;
+                tStatusText.textContent = ` Przetwarzanie... ${(elapsed / 1000).toFixed(1)}s`;
             }, 100);
 
             sendBtn.disabled = true;
@@ -68,18 +69,18 @@
                 spinner.classList.add("hidden");
 
                 if (res.status === 429) {
-                    statusText.textContent = "Ograniczenie przepustowości - poczekaj 3 sekundy.";
+                    tStatusText.textContent = "Ograniczenie przepustowości - poczekaj 3 sekundy.";
                 } else if (res.ok) {
                     const data = await res.json();
                     resultEl.value = data.result;
-                    statusText.textContent = `Czas: ${(elapsed / 1000).toFixed(1)}s`;
+                    tStatusText.textContent = `Czas: ${(elapsed / 1000).toFixed(1)}s`;
                 } else {
-                    statusText.textContent = "Error: " + res.statusText;
+                    tStatusText.textContent = "Error: " + res.statusText;
                 }
             } catch (err) {
                 clearInterval(timer);
                 spinner.classList.add("hidden");
-                statusText.textContent = "Network error.";
+                tStatusText.textContent = "Network error.";
             }
 
             setTimeout(() => {
@@ -96,43 +97,65 @@
 
                 spinner.classList.remove("hidden");
                 let elapsed = 0;
-                statusText.textContent = " Przetwarzanie... 0.0s";
+                tStatusText.textContent = " Przetwarzanie... 0.0s";
                 const timer = setInterval(() => {
                     elapsed += 100;
-                    statusText.textContent = ` Przetwarzanie... ${(elapsed / 1000).toFixed(1)}s`;
+                    tStatusText.textContent = ` Przetwarzanie... ${(elapsed / 1000).toFixed(1)}s`;
                 }, 100);
 
                 sendBtn.disabled = true;
                 cooldown = true;
                 
                 try {
-                    const response = await fetch('/api/domorelogic', {
-                        method: 'POST',
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ filePass, type, model }),
+                    const protocol = (location.protocol === 'https:') ? 'wss' : 'ws';
+                    const wsUrl = `${protocol}://${location.host}/ws/domorelogic`;
+                    const ws = new WebSocket(wsUrl);
+
+                    ws.addEventListener('open', () => {
+                        ws.send(JSON.stringify({ file: filePass, type, model }));
+                        iStatusText.textContent = " Połączono. Przetwarzanie pliku...";
                     });
 
-                    clearInterval(timer);
-                    spinner.classList.add("hidden");
+                    ws.addEventListener('message', (ev) => {
+                        try {
+                            const m = JSON.parse(ev.data);
+                            if (m.type === 'progress') {
+                                iStatusText.textContent = `Wiersz ${m.idx + 1}/${m.total}`;
+                            } else if (m.type === 'started') {
+                                iStatusText.textContent = `Rozpoczęto: ${m.file}`;
+                            } else if (m.type === 'done') {
+                                resultFile.download = filename;
+                                resultFile.href = `uploads/${filename}`;
+                                resultFile.parentElement.classList.remove('hidden');
+                                iStatusText.textContent = "Zakończono.";
+                                ws.close();
+                            } else if (m.type === 'error' || m.type === 'row_error') {
+                                console.error('Server error:', m);
+                                iStatusText.textContent = "Błąd serwera podczas przetwarzania.";
+                                ws.close();
+                            }
+                        } catch (err) {
+                            console.error('WS parse error', err);
+                        }
+                    });
 
-                    if (response.status === 429) {
-                        statusText.textContent = "Ograniczenie przepustowości - poczekaj 3 sekundy.";
-                    }
+                    ws.addEventListener('close', () => {
+                        spinner.classList.add('hidden');
+                        clearInterval(timer);
+                        setTimeout(() => { cooldown = false; sendBtn.disabled = false; }, 3000);
+                    });
 
-                    const result = await response.json()
-                    if (result.success) {
-                        resultFile.download = filename;
-                        resultFile.href = `uploads/${filename}`;
-                        resultFile.parentElement.classList.remove('hidden');
-                    }
-                    else {
-                        console.log('Processing file failed');
-                        throw new Error(procResult.error || 'Processing file failed.');
-                    }
+                    ws.addEventListener('error', (e) => {
+                        console.error('WebSocket error', e);
+                        iStatusText.textContent = "Błąd połączenia WebSocket.";
+                        spinner.classList.add('hidden');
+                        clearInterval(timer);
+                    });
+
                 } catch (err) {
                     clearInterval(timer);
                     spinner.classList.add("hidden");
-                    statusText.textContent = "Network error.";
+                    iStatusText.textContent = "Network error.";
                 }
 
                 setTimeout(() => {
