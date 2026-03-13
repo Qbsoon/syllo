@@ -11,6 +11,7 @@
     const modelEl = document.getElementById("model");
     const uploadDialog = document.getElementById("uploadDialog");
     const syllFile = document.getElementById("syllFile");
+    const customSPrompt = document.getElementById("customSPrompt");
     //Output
     const resultEl = document.getElementById("result");
     const spinner = document.getElementById("spinner");
@@ -44,7 +45,14 @@
 
         if (modeTextBtn.classList.contains('active')) {
             const syll = encodeURIComponent(syllEl.value);
-            const type = encodeURIComponent(typeEl.value);
+            let type = '';
+            if (typeEl.value != -1) {
+                type = encodeURIComponent(typeEl.value);
+            }
+            else
+            {
+                type = encodeURIComponent(customSPrompt.value);
+            }
             const model = encodeURIComponent(modelEl.value);
 
             spinner.classList.remove("hidden");
@@ -92,7 +100,14 @@
             const filename = syllFile.dataset.value;
             if (filename != '') {
                 const filePass = encodeURIComponent(filename);
-                const type = encodeURIComponent(typeEl.value);
+                let type = '';
+                if (typeEl.value != -1) {
+                    type = encodeURIComponent(typeEl.value);
+                }
+                else
+                {
+                    type = encodeURIComponent(customSPrompt.value);
+                }
                 const model = encodeURIComponent(modelEl.value);
 
                 spinner.classList.remove("hidden");
@@ -292,4 +307,12 @@
     new MutationObserver(() => {
         resultFile.parentElement.classList.toggle('hidden', resultFile.download == '');
     }).observe(resultFile, { attributes: true, attributeFilter: ['href'] });
+
+    typeEl.addEventListener('change', () => {
+        if (typeEl.value == -1) {
+            customSPrompt.parentElement.classList.remove('hidden');
+        } else {
+            customSPrompt.parentElement.classList.add('hidden');
+        }
+    });
 })();
