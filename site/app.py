@@ -47,6 +47,9 @@ async def index():
 ## Czy logowanie KUL?
 ## Ładniejsze "Pobierz wyniki"
 ## Logowanie pojedynczych zapytań
+## Fix llama
+## Add more local models
+## Add synonyms for column names
 
 
 # --- Process types/models function ---
@@ -107,9 +110,14 @@ async def do_more_logic():
 		syllos['response'] = ''
 		total = len(syllos)
 
+		conf = [[0, 0], [0, 0]]
+
 		for i, syllo in syllos.iterrows():
 			try:
 				reply = await figure_out(model, stype, syllo['premises'], syllo.get('conclusion', ''))
+				pred = int(reply[-1]) if reply[-1].isdigit() else ""
+				if pred in [0, 1, "0", "1"] and 'valid' in syllo:
+					conf[(int(syllo['valid'])+1)%2][(pred+1)%2] += 1
 			except Exception as e:
 				app.logger.exception("ws_domorelogic: exception at idx=%d", i)
 				reply = f"ERROR: {e}"
@@ -122,6 +130,9 @@ async def do_more_logic():
                 "total": total,
                 "preview": str(reply)[:200]
             })
+
+		if conf != [[0, 0], [0, 0]]:
+			await websocket.send_json({"type": "confusion", "labels": ["True", "False"], "matrix": conf})
 	
 		syllos.to_csv("uploads/" + file, index=False)
 		await websocket.send_json({"type": "done", "success": True, "file": file})

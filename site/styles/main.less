@@ -56,6 +56,74 @@ body {
     z-index: 30;
 }
 
+.confusion-panel {
+    position: absolute;
+    top: 50%;
+    right: calc(50% + 280px + 20px);
+    transform: translateY(-50%);
+    width: 320px;
+    max-width: 360px;
+    z-index: 30;
+}
+
+/* show main nudged right when confusion panel visible */
+.confusion-active .center-wrap .container.main {
+    transform: translateX(25%);
+    transition: transform 220ms ease;
+}
+
+/* both open -> cancel translation */
+.generating-active.confusion-active .center-wrap .container.main {
+    transform: translateX(0);
+}
+
+.confusion-panel .panel-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: transparent;
+    border: 1px solid @border;
+    color: @text-muted;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 0;
+}
+
+#confusionContent {
+    overflow: auto;
+    max-height: 60vh;
+}
+
+#confusionContent table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+#confusionContent th,
+#confusionContent td {
+    border: 1px solid @border;
+    padding: 6px 8px;
+    text-align: center;
+    color: @text;
+}
+
+#confusionContent th {
+    background: rgba(108,92,231,0.08);
+    color: @text;
+}
+
+#confusionContent td.value {
+    background: rgba(255,255,255,0.02);
+}
+
+#confusionContent th,
+#confusionContent td {
+    transition: background 220ms ease, color 220ms ease;
+}
+
 .generating-active .center-wrap .container.main {
     transform: translateX(-25%);
     transition: transform 220ms ease;
