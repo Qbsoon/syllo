@@ -27,6 +27,7 @@ REMOTE_MODELS = ['llama-3.3-70b-versatile',
                  'qwen/qwen3-32b']
 UPLOAD_ARCHIVE = "uploads"
 GENERATED_ARCHIVE = "generated"
+RESULTS_ARCHIVE = 'results'
 LCPP_URL = "http://127.0.0.1:51791/v1/chat/completions"
 
 
@@ -43,11 +44,10 @@ async def index():
 
 
 # --- TODO: Jakub ---
-## Wyświetlanie tabeli wyników + macierz pomyłek
 ## Czy logowanie KUL?
 ## Ładniejsze "Pobierz wyniki"
 ## Logowanie pojedynczych zapytań
-## Fix llama
+## Fix llama (no reasoning)
 ## Add more local models
 ## Add synonyms for column names
 
@@ -132,9 +132,31 @@ async def do_more_logic():
             })
 
 		if conf != [[0, 0], [0, 0]]:
-			await websocket.send_json({"type": "confusion", "labels": ["True", "False"], "matrix": conf})
+			n = len(conf)
+			total = sum(sum(r) for r in conf)
+			correct = sum(conf[i][i] for i in range(n))
+			acc = (correct / total) if total else 0
+			prec = [ (conf[i][i] / (sum(conf[r][i] for r in range(n)) or 1)) for i in range(n) ]
+			rec = [ (conf[i][i] / (sum(conf[i]) or 1)) for i in range(n) ]
+			mp = sum(prec) / n if n else 0
+			mr = sum(rec) / n if n else 0
+			mf = (2 * mp * mr / (mp + mr)) if (mp + mr) else 0
+			await websocket.send_json({
+				"type": "confusion",
+				"labels": ["True", "False"],
+				"matrix": conf,
+				"metrics": {
+					"accuracy": acc,
+					"macro_precision": mp,
+					"macro_recall": mr,
+					"macro_f1": mf,
+					"total": int(total)
+				}
+			})
 	
-		syllos.to_csv("uploads/" + file, index=False)
+		new_filename = f"result_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"
+		results_filepath = os.path.join(RESULTS_ARCHIVE, new_filename)
+		syllos.to_csv(results_filepath, index=False)
 		await websocket.send_json({"type": "done", "success": True, "file": file})
 	except Exception as e:
 		app.logger.exception("ws_domorelogic: fatal error")

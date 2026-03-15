@@ -7,6 +7,7 @@
     const modeFileBtn = document.getElementById('modeFile');
     const generateBtn = document.getElementById('generateBtn');
     const toggleGenerateBtn = document.getElementById('toggleGenerate');
+    const closeConfusion = document.getElementById('closeConfusion');
     //Inputs
     const syllEl = document.getElementById("syll");
     const typeEl = document.getElementById("type");
@@ -26,11 +27,10 @@
     const genTStatusText = document.getElementById('gen-time-status-text');
     const genIStatusText = document.getElementById("gen-i-status-text");
     const resultFile = document.getElementById("resultFile");
+    const confusionContent = document.getElementById('confusionContent');
     //Others
     const sidePanel = document.getElementById('sidePanel');
     const confusionPanel = document.getElementById('confusionPanel');
-    const confusionContent = document.getElementById('confusionContent');
-    const closeConfusion = document.getElementById('closeConfusion');
 
     // Przełączniki Tekst/Plik
     modeTextBtn.addEventListener('click', () => {
@@ -39,79 +39,6 @@
         modeTextBtn.classList.add('active');
         modeFileBtn.classList.remove('active');
     });
-
-    // Render confusion matrix into the left panel
-    function renderConfusion(labels, matrix) {
-        if (!Array.isArray(labels) || !Array.isArray(matrix)) {
-            confusionContent.innerText = 'Nieprawidłowy format danych.';
-            return;
-        }
-
-        let html = '<table><thead><tr><th></th>';
-        for (let lb of labels) {
-            html += `<th>${escapeHtml(String(lb))}</th>`;
-        }
-        html += '</tr></thead><tbody>';
-
-        for (let i = 0; i < matrix.length; i++) {
-            const row = matrix[i] || [];
-            html += `<tr><th>${escapeHtml(String(labels[i] || i))}</th>`;
-            for (let j = 0; j < labels.length; j++) {
-                const val = row[j] != null ? row[j] : '';
-                html += `<td class="value">${escapeHtml(String(val))}</td>`;
-            }
-            html += '</tr>';
-        }
-
-        html += '</tbody></table>';
-        confusionContent.innerHTML = html;
-
-        // Apply heatmap coloring based on matrix values
-        try {
-            let maxVal = 0;
-            for (let r = 0; r < matrix.length; r++) {
-                for (let c = 0; c < (matrix[r] || []).length; c++) {
-                    const v = Number(matrix[r][c]) || 0;
-                    if (v > maxVal) maxVal = v;
-                }
-            }
-
-            const table = confusionContent.querySelector('table');
-            if (table) {
-                const rows = table.tBodies[0].rows;
-                for (let i = 0; i < rows.length; i++) {
-                    const cells = rows[i].cells;
-                    // cells[0] is the row header
-                    for (let j = 1; j < cells.length; j++) {
-                        const cell = cells[j];
-                        const raw = cell.textContent.trim();
-                        const val = parseFloat(raw.replace(/[^0-9eE+\-.]/g, '')) || 0;
-                        const ratio = maxVal > 0 ? (val / maxVal) : 0;
-                        const alpha = 0.08 + 0.7 * ratio;
-                        cell.style.background = `rgba(108,92,231,${alpha})`;
-                        cell.style.transition = 'background 220ms ease, color 220ms ease';
-                        cell.style.color = ratio > 0.45 ? '#fff' : '#e2e2e8';
-                    }
-                }
-            }
-        } catch (e) {
-            console.error('Heatmap rendering failed', e);
-        }
-    }
-
-    function escapeHtml(s) {
-        return s.replace(/[&<>"']/g, function (c) {
-            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
-        });
-    }
-
-    if (closeConfusion) {
-        closeConfusion.addEventListener('click', () => {
-            confusionPanel.classList.add('hidden');
-            document.body.classList.remove('confusion-active');
-            confusionContent.innerHTML = 'Brak danych.';
-        });
-    }
 
     modeFileBtn.addEventListener('click', () => {
         document.querySelectorAll('.type-one').forEach(el => el.classList.add('hidden'));
@@ -232,13 +159,17 @@
                                 iStatusText.textContent = "Zakończono.";
                                 ws.close();
                             } else if (m.type === 'confusion') {
-                                // Expecting { type: 'confusion', labels: [...], matrix: [[...]] }
                                 try {
                                     const labels = m.labels || [];
                                     const matrix = m.matrix || [];
                                     renderConfusion(labels, matrix);
                                     confusionPanel.classList.remove('hidden');
                                     document.body.classList.add('confusion-active');
+                                    const metricsEl = document.getElementById('confusionMetrics');
+                                    if (m.metrics && metricsEl) {
+                                        const fmtv = (v) => (typeof v === 'number' ? v.toFixed(3) : v);
+                                        metricsEl.textContent = `Accuracy: ${fmtv(m.metrics.accuracy)}\nPrecision: ${fmtv(m.metrics.macro_precision)}\nRecall: ${fmtv(m.metrics.macro_recall)}\nF1: ${fmtv(m.metrics.macro_f1)}\nŁącznie wierszy: ${m.metrics.total}`;
+                                    }
                                 } catch (err) {
                                     console.error('Error rendering confusion matrix', err);
                                 }
@@ -542,4 +473,75 @@
             toggleGenerateBtn.classList.add('active');
         }
     });
+
+    // Confusion matrix
+    function renderConfusion(labels, matrix) {
+        if (!Array.isArray(labels) || !Array.isArray(matrix)) {
+            confusionContent.innerText = 'Nieprawidłowy format danych.';
+            return;
+        }
+
+        let html = '<table><thead><tr><th></th>';
+        for (let lb of labels) {
+            html += `<th>${escapeHtml(String(lb))}</th>`;
+        }
+        html += '</tr></thead><tbody>';
+
+        for (let i = 0; i < matrix.length; i++) {
+            const row = matrix[i] || [];
+            html += `<tr><th>${escapeHtml(String(labels[i] || i))}</th>`;
+            for (let j = 0; j < labels.length; j++) {
+                const val = row[j] != null ? row[j] : '';
+                html += `<td class="value">${escapeHtml(String(val))}</td>`;
+            }
+            html += '</tr>';
+        }
+
+        html += '</tbody></table>';
+        confusionContent.innerHTML = html;
+
+        try {
+            let maxVal = 0;
+            for (let r = 0; r < matrix.length; r++) {
+                for (let c = 0; c < (matrix[r] || []).length; c++) {
+                    const v = Number(matrix[r][c]) || 0;
+                    if (v > maxVal) maxVal = v;
+                }
+            }
+
+            const table = confusionContent.querySelector('table');
+            if (table) {
+                const rows = table.tBodies[0].rows;
+                for (let i = 0; i < rows.length; i++) {
+                    const cells = rows[i].cells;
+                    for (let j = 1; j < cells.length; j++) {
+                        const cell = cells[j];
+                        const raw = cell.textContent.trim();
+                        const val = parseFloat(raw.replace(/[^0-9eE+\-.]/g, '')) || 0;
+                        const ratio = maxVal > 0 ? (val / maxVal) : 0;
+                        const alpha = 0.08 + 0.7 * ratio;
+                        cell.style.background = `rgba(108,92,231,${alpha})`;
+                        cell.style.transition = 'background 220ms ease, color 220ms ease';
+                        cell.style.color = ratio > 0.45 ? '#fff' : '#e2e2e8';
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Heatmap rendering failed', e);
+        }
+    }
+
+    function escapeHtml(s) {
+        return s.replace(/[&<>"']/g, function (c) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+        });
+    }
+
+    if (closeConfusion) {
+        closeConfusion.addEventListener('click', () => {
+            confusionPanel.classList.add('hidden');
+            document.body.classList.remove('confusion-active');
+            confusionContent.innerHTML = 'Brak danych.';
+        });
+    }
 })();

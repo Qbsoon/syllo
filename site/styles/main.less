@@ -66,13 +66,11 @@ body {
     z-index: 30;
 }
 
-/* show main nudged right when confusion panel visible */
 .confusion-active .center-wrap .container.main {
     transform: translateX(25%);
     transition: transform 220ms ease;
 }
 
-/* both open -> cancel translation */
 .generating-active.confusion-active .center-wrap .container.main {
     transform: translateX(0);
 }
@@ -94,6 +92,15 @@ body {
 #confusionContent {
     overflow: auto;
     max-height: 60vh;
+}
+
+.confusion-metrics {
+    margin-top: 12px;
+    font-size: 0.92rem;
+    color: @text;
+    white-space: pre-line;
+    border-top: 1px dashed rgba(255,255,255,0.03);
+    padding-top: 10px;
 }
 
 #confusionContent table {
