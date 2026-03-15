@@ -22,6 +22,7 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
+    position: relative;
 }
 
 .container {
@@ -36,6 +37,47 @@ body {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
+
+.center-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+.side-panel {
+    position: absolute;
+    top: 50%;
+    left: calc(50% + 280px + 20px);
+    transform: translateY(-50%);
+    width: 320px;
+    max-width: 360px;
+    z-index: 30;
+}
+
+.generating-active .center-wrap .container.main {
+    transform: translateX(-25%);
+    transition: transform 220ms ease;
+}
+
+.generate-toggle {
+    display: inline-block;
+    margin: 0;
+    width: auto;
+    padding: 8px 14px;
+    background: @bg;
+    color: @text-muted;
+    border: 1px solid @border;
+    border-radius: 8px;
+}
+
+.generate-toggle.active {
+    background: @accent;
+    color: #fff;
+    border-color: @accent;
+}
+
 h1 {
     font-size: 1.6rem;
     font-weight: 600;
@@ -47,6 +89,21 @@ h1 {
     background-clip: text;
     -webkit-text-fill-color: transparent;
     -moz-text-fill-color: transparent;
+}
+
+h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 18px;
+    text-align: left;
+    background: linear-gradient(135deg, @accent, #a29bfe);
+    -webkit-background-clip: text;
+    -moz-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    -moz-text-fill-color: transparent;
+    color: transparent;
+    text-align: center;
 }
 
 .field {
@@ -71,18 +128,47 @@ h1 {
         border: 1px solid @border;
         border-radius: 8px;
         outline: none;
-        margin-top: 26px;
+        //margin-top: 26px;
 
         &:focus {
             border-color: @accent;
         }
     }
 
+    input[type="number"] {
+        flex: 1;
+        padding: 12px 14px;
+        font-family: @font;
+        font-size: 0.95rem;
+        color: @text;
+        background: @bg;
+        border: 1px solid @border;
+        border-radius: 8px;
+        outline: none;
+        //margin-top: 26px;
+        width: 100%;
+
+        &:focus {
+            border-color: @accent;
+        }
+    }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type="number"] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+
     button {
         width: auto;
         padding: 12px 18px;
         margin-bottom: 0;
-        margin-top: 26px;
+        //margin-top: 26px;
         white-space: nowrap;
         flex-shrink: 0;
     }
@@ -155,7 +241,7 @@ button {
     }
 }
 
-#status {
+.status {
     font-size: 0.85rem;
     color: @text-muted;
     text-align: center;

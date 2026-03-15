@@ -26,6 +26,7 @@ REMOTE_MODELS = ['llama-3.3-70b-versatile',
                  'openai/gpt-oss-120b', 
                  'qwen/qwen3-32b']
 UPLOAD_ARCHIVE = "uploads"
+GENERATED_ARCHIVE = "generated"
 LCPP_URL = "http://127.0.0.1:51791/v1/chat/completions"
 
 
@@ -42,7 +43,6 @@ async def index():
 
 
 # --- TODO: Jakub ---
-## Pobieranie template
 ## Wyświetlanie tabeli wyników + macierz pomyłek
 ## Czy logowanie KUL?
 ## Ładniejsze "Pobierz wyniki"
@@ -102,7 +102,7 @@ async def do_more_logic():
 
 	await websocket.send_json({"type": "started", "file": file})
 	try:
-		path = os.path.join(UPLOAD_ARCHIVE, file)
+		path = os.path.join(UPLOAD_ARCHIVE if file.startswith('upload') else GENERATED_ARCHIVE, file)
 		syllos = pd.read_csv(path)
 		syllos['response'] = ''
 		total = len(syllos)
@@ -123,7 +123,7 @@ async def do_more_logic():
                 "preview": str(reply)[:200]
             })
 	
-		syllos.to_csv("uploads/" + file)
+		syllos.to_csv("uploads/" + file, index=False)
 		await websocket.send_json({"type": "done", "success": True, "file": file})
 	except Exception as e:
 		app.logger.exception("ws_domorelogic: fatal error")
@@ -178,7 +178,7 @@ async def generate_syllo(
 		max_a: Maximum unary predicates.
 
 	Returns:
-		List[Dict[str, Any]]: Array of objects with premises, conclusion, and sat status.
+		List[Dict[str, Any]]: Array of objects with premises, conclusion, and valid(sat) status.
 	"""
 	from NLSAT_engine.data_construction import run_engine
 
@@ -198,7 +198,8 @@ async def generate_syllo(
 
 	timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 	file_name = f"{timestamp}.csv"
-	df.to_csv(os.path.join(history_path, file_name), index=False)
+	save_path = os.path.join(history_path, file_name)
+	df.to_csv(save_path, index=False)
 
 	result = []
 	for _, row in df.iterrows():
@@ -206,10 +207,54 @@ async def generate_syllo(
 		result.append({
 			'premises': sentences[:-1] if len(sentences) > 1 else sentences,
 			'conclusion': sentences[-1] if len(sentences) > 1 else "",
-			'sat': 1 if row['sat'] == 'sat' else 0
+			'valid': 1 if row['sat'] == 'sat' else 0
 		})
 
 	return result
+
+
+@app.route("/api/generateone", methods=["POST"])
+@rate_limit(1, timedelta(seconds=1))
+async def generate_one():
+	data = await request.get_json()
+
+	minA = urllib.parse.unquote(data.get("minA", ""))
+	maxA = urllib.parse.unquote(data.get("maxA", ""))
+
+	sampling = [{"m/a": 1.0, "m/b": 3.0, "is_sat": 0.61}]
+	try:
+		syll = await generate_syllo(num=1, sampling=sampling, min_a=int(minA), max_a=int(maxA))
+		result = "".join((prem.strip().capitalize() + (" " if prem.strip().endswith(".") else (". "))) for prem in syll[0]['premises'])
+		result += syll[0]['conclusion'].strip().capitalize() + ("" if syll[0]['conclusion'].strip().endswith(".") else ("."))
+		app.logger.info(f"Generated syllogism: {result}")
+		return jsonify({"success": True, "result": result})
+	except Exception as e:
+		return jsonify({"success": False, "result": f"Error during syllogism generation: {e}"})
+
+
+@app.websocket("/ws/generatemany")
+async def generate_many():
+	msg = await websocket.receive_json()
+	num = urllib.parse.unquote(msg.get("num", ""))
+	minA = urllib.parse.unquote(msg.get("minA", ""))
+	maxA = urllib.parse.unquote(msg.get("maxA", ""))
+
+	sampling = [{"m/a": 1.0, "m/b": 3.0, "is_sat": 0.61}]
+	try:
+		result = await generate_syllo(num=int(num), sampling=sampling, min_a=int(minA), max_a=int(maxA))
+		for row in result:
+			row['premises'] = " ".join((prem.strip().capitalize() + ("" if prem.strip().endswith(".") else ("."))) for prem in row['premises'])
+			row['conclusion'] = row['conclusion'].strip().capitalize() + ("" if row['conclusion'].strip().endswith(".") else ("."))
+
+		converted = pd.DataFrame(result)
+
+		filename = f"gen_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"
+		filepath = os.path.join(GENERATED_ARCHIVE, filename)
+		converted.to_csv(filepath, index=False)
+
+		await websocket.send_json({"type": "done", "success": True, "filename": filename})
+	except Exception as e:
+		await websocket.send_json({"type": "error", "error": f"Error during syllogism generation: {e}"})
 
 
 # --- Access to files ---

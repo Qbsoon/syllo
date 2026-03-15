@@ -8,65 +8,97 @@
     <script src="https://cdn.jsdelivr.net/npm/less"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>SI-logizm</h1>
+    <div class="center-wrap">
+        <div class="container main">
+            <h1>SI-logizm</h1>
 
-        <div class="toggle-mode">
-            <button class="mode-btn active" id="modeText">Tekst</button>
-            <button class="mode-btn" id="modeFile">Plik</button>
+            <div class="toggle-mode">
+                <button class="mode-btn active" id="modeText">Tekst</button>
+                <button class="mode-btn" id="modeFile">Plik</button>
+            </div>
+
+            <div class="field type-one">
+                <label for="syll">Treść sylogizmu</label>
+                <textarea id="syll" rows="4" placeholder="Wprowadź sylogizm…"></textarea>
+            </div>
+
+            <div class="field type-file hidden">
+                <label for="templateFile">CSV</label>
+                <a href="uploads/template.csv" downlad="uploads/template.csv" id="templateFile">Pobierz wzorowy plik csv</a>
+            </div>
+
+            <div class="field field-inline type-file hidden">
+                <input type="text" id="syllFile" placeholder="Wgraj plik csv" readonly>
+                <button id="syllUpload">Wgraj</button>
+            </div>
+
+            <div class="field">
+                <label for="type">Typ rozważania</label>
+                <select id="type">
+                    <option value="0">Sprawdzanie poprawności logicznej</option>
+                    <option value="1">Sprawdzenie poprawności logicznej (0/1)</option>
+                    <option value="2">Stworzenie wniosku do przesłanek</option>
+                    <option value="3">Sprawdzenie poprawności logicznej (z podaniem reguł)</option>
+                    <option value="4">Prosty</option>
+                    <option value="-1">Niestandardowe</option>
+                </select>
+            </div>
+
+            <div class="field hidden">
+                <label for="customSPrompt">Niestandarowy System Prompt</label>
+                <textarea id="customSPrompt" rows="2" placeholder="Wprowadź system prompt..."></textarea>
+            </div>
+
+            <div class="field">
+                <label for="model">Model</label>
+                <select id="model">
+                    <option value="qwen3_14b_q5km">Qwen3-14B-Q5_K_M (Local)</option>
+                    <option value="llama-3.3-70b-versatile">Llama-3.3-70B-Versatile (Remote)</option>
+                    <option value="openai/gpt-oss-20b">GPT-OSS-20B (Remote)</option>
+                    <option value="openai/gpt-oss-120b">GPT_OSS-120B (Remote)</option> 
+                    <option value="qwen/qwen3-32b">Qwen3-32B (Remote)</option>
+                </select>
+            </div>
+
+            <button id="send">Wyślij</button>
+
+            <p class="status"><span id="spinner" class="spinner hidden"></span><span id="i-status-text"></span><span id="time-status-text"></span></p>
+
+            <div class="field type-one">
+                <label for="result">Wynik</label>
+                <textarea id="result" rows="6" readonly placeholder="Tu pojawi się wynik…"></textarea>
+            </div>
+
+            <div class="field hidden">
+                <label for="resultFile">Wyniki</label>
+                <a href="" downlad="" id="resultFile">Pobierz wyniki</a>
+            </div>
         </div>
 
-        <div class="field type-one">
-            <label for="syll">Treść sylogizmu</label>
-            <textarea id="syll" rows="4" placeholder="Wprowadź sylogizm…"></textarea>
-        </div>
+        <button id="toggleGenerate" class="generate-toggle">Generowanie</button>
+    </div>
 
-        <div class="field field-inline type-file hidden">
-            <input type="text" id="syllFile" placeholder="Wgraj plik csv" readonly>
-            <button id="syllUpload">Wgraj</button>
+    <div id="sidePanel" class="container side-panel hidden">
+        <h2>Generowanie</h2>
+
+        <div class="field type-file hidden">
+            <label for="numSyll">Liczba</label>
+            <input type="number" id="numSyll" value="5" />
         </div>
 
         <div class="field">
-            <label for="type">Typ rozważania</label>
-            <select id="type">
-                <option value="0">Sprawdzanie poprawności logicznej</option>
-                <option value="1">Sprawdzenie poprawności logicznej (0/1)</option>
-                <option value="2">Stworzenie wniosku do przesłanek</option>
-                <option value="3">Sprawdzenie poprawności logicznej (z podaniem reguł)</option>
-                <option value="4">Prosty</option>
-                <option value="-1">Niestandardowe</option>
-            </select>
-        </div>
-
-        <div class="field hidden">
-            <label for="customSPrompt">Niestandarowy System Prompt</label>
-            <textarea id="customSPrompt" rows="2" placeholder="Wprowadź system prompt..."></textarea>
+            <label for="minPremise">Minimum przesłanek</label>
+            <input type="number" id="minPremise" value="2" />
         </div>
 
         <div class="field">
-            <label for="model">Model</label>
-            <select id="model">
-                <option value="qwen3_14b_q5km">Qwen3-14B-Q5_K_M (Local)</option>
-                <option value="llama-3.3-70b-versatile">Llama-3.3-70B-Versatile (Remote)</option>
-                <option value="openai/gpt-oss-20b">GPT-OSS-20B (Remote)</option>
-                <option value="openai/gpt-oss-120b">GPT_OSS-120B (Remote)</option> 
-                <option value="qwen/qwen3-32b">Qwen3-32B (Remote)</option>
-            </select>
+            <label for="maxPremise">Maksimum przesłanek</label>
+            <input type="number" id="maxPremise" value="2" />
         </div>
+        
+        <button id="generateBtn">Generuj</button>
 
-        <button id="send">Wyślij</button>
-
-        <p id="status"><span id="spinner" class="spinner hidden"></span><span id="i-status-text"></span><span id="time-status-text"></span></p>
-
-        <div class="field type-one">
-            <label for="result">Wynik</label>
-            <textarea id="result" rows="6" readonly placeholder="Tu pojawi się wynik…"></textarea>
-        </div>
-
-        <div class="field hidden">
-            <label for="resultFile">Wyniki</label>
-            <a href="" downlad="" id="resultFile">Pobierz wyniki</a>
-        </div>
+        <p class="status"><span id="genSpinner" class="spinner hidden"></span><span id="gen-i-status-text"></span><span id="gen-time-status-text"></span></p>
     </div>
 
     <input type="file" id="uploadDialog" accept=".csv" style="display:none;" />

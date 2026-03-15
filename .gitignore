@@ -4,5 +4,6 @@ llama/
 models/
 __pycache__/
 site/uploads/*
+site/generated/*
 !site/uploads/template.csv
 site/NLSAT_engine/history/*
