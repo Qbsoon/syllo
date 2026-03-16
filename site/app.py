@@ -157,7 +157,7 @@ async def do_more_logic():
 		new_filename = f"result_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"
 		results_filepath = os.path.join(RESULTS_ARCHIVE, new_filename)
 		syllos.to_csv(results_filepath, index=False)
-		await websocket.send_json({"type": "done", "success": True, "file": file})
+		await websocket.send_json({"type": "done", "success": True, "file": new_filename})
 	except Exception as e:
 		app.logger.exception("ws_domorelogic: fatal error")
 		await websocket.send_json({"type": "error", "error": str(e)})

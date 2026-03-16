@@ -154,7 +154,7 @@
                                 iStatusText.textContent = `Rozpoczęto: ${m.file}`;
                             } else if (m.type === 'done') {
                                 resultFile.download = filename;
-                                resultFile.href = `uploads/${filename}`;
+                                resultFile.href = `results/${m.file}`;
                                 resultFile.parentElement.classList.remove('hidden');
                                 iStatusText.textContent = "Zakończono.";
                                 ws.close();
