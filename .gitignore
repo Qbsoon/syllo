@@ -8,3 +8,4 @@ site/generated/*
 site/results/*
 !site/uploads/template.csv
 site/NLSAT_engine/history/*
+site/tokens.csv

@@ -48,6 +48,8 @@ async def index():
 ## Ładniejsze "Pobierz wyniki"
 ## Logowanie pojedynczych zapytań
 ## Fix llama (no reasoning)
+## Add reasoning effort bar
+## Add retrying if rpm limit
 ## Add more local models
 ## Add synonyms for column names
 
@@ -70,14 +72,16 @@ async def figure_out(model, stype, syll, conc = ''):
 	else:
 		messages = [{'role': 'system', 'content': f'{stype}'}, {'role': 'user', 'content': f'Sylogizm: {syll}{'\n'+conc if conc !='' else ''}'}]
 
+	tokens = 0
+
 	if (model in LOCAL_MODELS):
 		reply = await local_prompt(messages)
 	elif (model in REMOTE_MODELS):
-		reply = await remote_prompt(messages, model)
+		reply, tokens = await remote_prompt(messages, model)
 	else:
 		reply += " Wrong model."
 
-	return reply
+	return reply, tokens
 
 
 # --- Ask AI endpoint ---
@@ -90,7 +94,11 @@ async def do_logic():
 	stype = urllib.parse.unquote(data.get("type", ""))
 	model = urllib.parse.unquote(data.get("model", ""))
 
-	reply = await figure_out(model, stype, syll)
+	reply, tokens = await figure_out(model, stype, syll)
+
+	if tokens > 0:
+		with open('tokens.csv', 'a') as f:
+			f.write(f"{tokens}, 1\n")
 
 	return jsonify({"result": reply})
 
@@ -111,13 +119,16 @@ async def do_more_logic():
 		total = len(syllos)
 
 		conf = [[0, 0], [0, 0]]
+		tokens_total = 0
 
 		for i, syllo in syllos.iterrows():
 			try:
-				reply = await figure_out(model, stype, syllo['premises'], syllo.get('conclusion', ''))
-				pred = int(reply[-1]) if reply[-1].isdigit() else ""
-				if pred in [0, 1, "0", "1"] and 'valid' in syllo:
-					conf[(int(syllo['valid'])+1)%2][(pred+1)%2] += 1
+				reply, tokens = await figure_out(model, stype, syllo['premises'], syllo.get('conclusion', ''))
+				if (reply != ''):
+					pred = int(reply[-1]) if reply[-1].isdigit() else ""
+					if pred in [0, 1, "0", "1"] and 'valid' in syllo:
+						conf[(int(syllo['valid'])+1)%2][(pred+1)%2] += 1
+				tokens_total += tokens
 			except Exception as e:
 				app.logger.exception("ws_domorelogic: exception at idx=%d", i)
 				reply = f"ERROR: {e}"
@@ -130,6 +141,9 @@ async def do_more_logic():
                 "total": total,
                 "preview": str(reply)[:200]
             })
+		
+		with open('tokens.csv', 'a') as f:
+			f.write(f"{tokens}, {total}\n")
 
 		if conf != [[0, 0], [0, 0]]:
 			n = len(conf)
@@ -190,7 +204,8 @@ async def remote_prompt(messages, model):
         include_reasoning=False
     )
     reply = chat_completion.choices[0].message.content
-    return reply
+    tokens = chat_completion.usage.completion_tokens
+    return reply, tokens
 
 
 # --- Generate syllogism function ---
@@ -300,8 +315,12 @@ async def serve_styles(filename):
 	return await send_from_directory(os.path.join(".", "styles"), filename)
 
 @app.route("/uploads/<filename>")
-async def server_download(filename):
+async def server_upload(filename):
 	return await send_from_directory(os.path.join(".", "uploads"), filename)
+
+@app.route("/results/<filename>")
+async def server_download(filename):
+	return await send_from_directory(os.path.join(".", "results"), filename)
 
 
 # Upload section
