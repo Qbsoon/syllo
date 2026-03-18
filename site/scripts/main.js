@@ -185,6 +185,10 @@
                                     console.error('Server error:', m);
                                     iStatusText.textContent = "Błąd serwera podczas przetwarzania.";
                                     ws.close();
+                                } else if (m.type === 'rate_limit') {
+                                    if (!iStatusText.textContent.includes('Limit Groq')) {
+                                        iStatusText.textContent = iStatusText.textContent + " Limit Groq, próba ponawiania"
+                                    }
                                 }
                             } catch (err) {
                                 console.error('WS parse error', err);

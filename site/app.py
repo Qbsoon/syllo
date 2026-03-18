@@ -11,7 +11,7 @@ from datetime import datetime
 import pandas as pd
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
-from groq import Groq
+from groq import AsyncGroq, APIStatusError
 import asyncio
 from time import time
 import traceback
@@ -69,7 +69,7 @@ async def find_col(coltype, colnames):
 
 
 # --- Process types/models function ---
-async def figure_out(model, stype, syll, conc = '', reason_effort = 'none'):
+async def figure_out(model, stype, syll, conc = '', reason_effort = 'none', ws = None):
 	reply = 'Something went wrong.'
 
 	messages = ""
@@ -91,7 +91,7 @@ async def figure_out(model, stype, syll, conc = '', reason_effort = 'none'):
 	if (model in LOCAL_MODELS):
 		reply = await local_prompt(messages)
 	elif (model in REMOTE_MODELS):
-		reply, tokens = await remote_prompt(messages, model, reason_effort)
+		reply, tokens = await remote_prompt(messages, model, reason_effort, ws)
 	else:
 		reply += " Wrong model."
 
@@ -144,7 +144,7 @@ async def do_more_logic():
 
 		for i, syllo in syllos.iterrows():
 			try:
-				reply, tokens = await figure_out(model, stype, syllo[premcol], syllo.get(conccol, ''), reason_effort)
+				reply, tokens = await figure_out(model, stype, syllo[premcol], syllo.get(conccol, ''), reason_effort, websocket)
 				if (reply != ''):
 					pred = int(reply[-1]) if reply[-1].isdigit() else ""
 					if pred in [0, 1, "0", "1"] and validcol in syllo:
@@ -214,8 +214,8 @@ async def local_prompt(messages):
 
 
 # --- Remote AI function ---
-async def remote_prompt(messages, model, reason_effort):
-	client = Groq(
+async def remote_prompt(messages, model, reason_effort, ws = None):
+	client = AsyncGroq(
 		api_key=os.environ.get("GROQ_API_KEY"),
 	)
 
@@ -226,13 +226,26 @@ async def remote_prompt(messages, model, reason_effort):
 	if model == 'llama-3.3-70b-versatile':
 		reason_effort = None
 		reason = None
+	while True:
+		try:
+			chat_completion = await client.chat.completions.create(
+				messages=messages,
+				model=model,
+				include_reasoning=reason,
+				reasoning_effort=reason_effort
+			)
+			break
+		except APIStatusError as e:
+			if e.status_code == 429:
+				if ws is not None:
+					await ws.send_json({"type": "rate_limit"})
+				await asyncio.sleep(5)
+				continue
+			else:
+				raise e
+		except Exception as e:
+			raise e
 
-	chat_completion = client.chat.completions.create(
-		messages=messages,
-		model=model,
-		include_reasoning=reason,
-		reasoning_effort=reason_effort
-	)
 	reply = chat_completion.choices[0].message.content
 	tokens = chat_completion.usage.completion_tokens
 	return reply, tokens
