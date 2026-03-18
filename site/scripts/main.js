@@ -187,8 +187,13 @@
                                     ws.close();
                                 } else if (m.type === 'rate_limit') {
                                     if (!iStatusText.textContent.includes('Limit Groq')) {
-                                        iStatusText.textContent = iStatusText.textContent + " Limit Groq, próba ponawiania"
+                                        iStatusText.textContent = iStatusText.textContent + ` Limit Groq, próba ponawiania ${m.num}/10`;
+                                    } else {
+                                        iStatusText.textContent = iStatusText.textContent.slice(0, iStatusText.textContent.length - 4) + `${m.num}/10`;
                                     }
+                                } else if (m.type === 'rate_limit_stop') {
+                                    iStatusText.textContent = `Osiągnięto limity Groq, odczekaj chwilę`;
+                                    ws.close();
                                 }
                             } catch (err) {
                                 console.error('WS parse error', err);

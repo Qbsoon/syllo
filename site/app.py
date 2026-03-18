@@ -215,9 +215,6 @@ async def local_prompt(messages):
 
 # --- Remote AI function ---
 async def remote_prompt(messages, model, reason_effort, ws = None):
-	client = AsyncGroq(
-		api_key=os.environ.get("GROQ_API_KEY"),
-	)
 
 	reason = True
 	if reason_effort == 'none':
@@ -226,8 +223,11 @@ async def remote_prompt(messages, model, reason_effort, ws = None):
 	if model == 'llama-3.3-70b-versatile':
 		reason_effort = None
 		reason = None
-	while True:
+	for i in range(1, 12):
 		try:
+			client = AsyncGroq(
+				api_key=os.environ.get("GROQ_API_KEY"),
+			)
 			chat_completion = await client.chat.completions.create(
 				messages=messages,
 				model=model,
@@ -237,10 +237,14 @@ async def remote_prompt(messages, model, reason_effort, ws = None):
 			break
 		except APIStatusError as e:
 			if e.status_code == 429:
-				if ws is not None:
-					await ws.send_json({"type": "rate_limit"})
-				await asyncio.sleep(5)
-				continue
+				if i <= 10:
+					if ws is not None:
+						await ws.send_json({"type": "rate_limit", "num": i})
+					await asyncio.sleep(5)
+					continue
+				else:
+					if ws is not None:
+						await ws.send_json({"type": "rate_limit_stop"})
 			else:
 				raise e
 		except Exception as e:
