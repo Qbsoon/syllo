@@ -22,9 +22,9 @@ load_dotenv()
 # --- 'Static' values ---
 LOCAL_MODELS = ['qwen3_14b_q5km']
 REMOTE_MODELS = ['llama-3.3-70b-versatile', 
-                 'openai/gpt-oss-20b', 
-                 'openai/gpt-oss-120b', 
-                 'qwen/qwen3-32b']
+				 'openai/gpt-oss-20b', 
+				 'openai/gpt-oss-120b', 
+				 'qwen/qwen3-32b']
 UPLOAD_ARCHIVE = "uploads"
 GENERATED_ARCHIVE = "generated"
 RESULTS_ARCHIVE = 'results'
@@ -47,7 +47,6 @@ async def index():
 ## Czy logowanie KUL?
 ## Ładniejsze "Pobierz wyniki"
 ## Logowanie pojedynczych zapytań
-## Fix llama (no reasoning)
 ## Add reasoning effort bar
 ## Add retrying if rpm limit
 ## Add more local models
@@ -136,11 +135,11 @@ async def do_more_logic():
 			syllos.at[i, 'response'] = reply
 
 			await websocket.send_json({
-                "type": "progress",
-                "idx": i,
-                "total": total,
-                "preview": str(reply)[:200]
-            })
+				"type": "progress",
+				"idx": i,
+				"total": total,
+				"preview": str(reply)[:200]
+			})
 		
 		with open('tokens.csv', 'a') as f:
 			f.write(f"{tokens}, {total}\n")
@@ -194,18 +193,22 @@ async def local_prompt(messages):
 
 # --- Remote AI function ---
 async def remote_prompt(messages, model):
-    client = Groq(
-        api_key=os.environ.get("GROQ_API_KEY"),
-    )
+	client = Groq(
+		api_key=os.environ.get("GROQ_API_KEY"),
+	)
 
-    chat_completion = client.chat.completions.create(
-        messages=messages,
-        model=model,
-        include_reasoning=False
-    )
-    reply = chat_completion.choices[0].message.content
-    tokens = chat_completion.usage.completion_tokens
-    return reply, tokens
+	reason = False
+	if model == 'llama-3.3-70b-versatile':
+		reason = None
+
+	chat_completion = client.chat.completions.create(
+		messages=messages,
+		model=model,
+		include_reasoning=reason
+	)
+	reply = chat_completion.choices[0].message.content
+	tokens = chat_completion.usage.completion_tokens
+	return reply, tokens
 
 
 # --- Generate syllogism function ---
