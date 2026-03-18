@@ -58,13 +58,13 @@ async def index():
 async def find_col(coltype, colnames):
 	for col in colnames:
 		if coltype=='prem':
-			if col in premises_cols:
+			if col.lower() in premises_cols:
 				return col
 		elif coltype=='conc':
-			if col in conclusion_cols:
+			if col.lower() in conclusion_cols:
 				return col
 		elif coltype=='valid':
-			if col in valid_cols:
+			if col.lower() in valid_cols:
 				return col
 	return coltype
 
