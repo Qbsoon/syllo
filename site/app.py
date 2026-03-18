@@ -29,6 +29,9 @@ UPLOAD_ARCHIVE = "uploads"
 GENERATED_ARCHIVE = "generated"
 RESULTS_ARCHIVE = 'results'
 LCPP_URL = "http://127.0.0.1:51791/v1/chat/completions"
+premises_cols = ['premises', 'przesłanki', 'przeslanki', 'prem']
+conclusion_cols = ['conclusion', 'conc', 'wniosek', 'wnioski', 'conclusions']
+valid_cols = ['valid', 'prawdziwość', 'prawdziwosc']
 
 
 # --- App definition ---
@@ -50,7 +53,20 @@ async def index():
 ## Add reasoning effort bar
 ## Add retrying if rpm limit
 ## Add more local models
-## Add synonyms for column names
+
+
+async def find_col(coltype, colnames):
+	for col in colnames:
+		if coltype=='prem':
+			if col in premises_cols:
+				return col
+		elif coltype=='conc':
+			if col in conclusion_cols:
+				return col
+		elif coltype=='valid':
+			if col in valid_cols:
+				return col
+	return coltype
 
 
 # --- Process types/models function ---
@@ -117,16 +133,20 @@ async def do_more_logic():
 		syllos['response'] = ''
 		total = len(syllos)
 
+		premcol = await find_col('prem', syllos.columns)
+		conccol = await find_col('conc', syllos.columns)
+		validcol = await find_col('valid', syllos.columns)
+
 		conf = [[0, 0], [0, 0]]
 		tokens_total = 0
 
 		for i, syllo in syllos.iterrows():
 			try:
-				reply, tokens = await figure_out(model, stype, syllo['premises'], syllo.get('conclusion', ''))
+				reply, tokens = await figure_out(model, stype, syllo[premcol], syllo.get(conccol, ''))
 				if (reply != ''):
 					pred = int(reply[-1]) if reply[-1].isdigit() else ""
-					if pred in [0, 1, "0", "1"] and 'valid' in syllo:
-						conf[(int(syllo['valid'])+1)%2][(pred+1)%2] += 1
+					if pred in [0, 1, "0", "1"] and validcol in syllo:
+						conf[(int(syllo[validcol])+1)%2][(pred+1)%2] += 1
 				tokens_total += tokens
 			except Exception as e:
 				app.logger.exception("ws_domorelogic: exception at idx=%d", i)

@@ -168,7 +168,7 @@
                                     const metricsEl = document.getElementById('confusionMetrics');
                                     if (m.metrics && metricsEl) {
                                         const fmtv = (v) => (typeof v === 'number' ? v.toFixed(3) : v);
-                                        metricsEl.textContent = `Accuracy: ${fmtv(m.metrics.accuracy)}\nPrecision: ${fmtv(m.metrics.macro_precision)}\nRecall: ${fmtv(m.metrics.macro_recall)}\nF1: ${fmtv(m.metrics.macro_f1)}\nŁącznie wierszy: ${m.metrics.total}`;
+                                        metricsEl.textContent = `Accuracy: ${fmtv(m.metrics.accuracy)}\nMacro Precision: ${fmtv(m.metrics.macro_precision)}\nMacro Recall: ${fmtv(m.metrics.macro_recall)}\nMacro F1: ${fmtv(m.metrics.macro_f1)}\nŁącznie wierszy: ${m.metrics.total}`;
                                     }
                                 } catch (err) {
                                     console.error('Error rendering confusion matrix', err);
