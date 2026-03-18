@@ -50,7 +50,6 @@ async def index():
 ## Czy logowanie KUL?
 ## Ładniejsze "Pobierz wyniki"
 ## Logowanie pojedynczych zapytań
-## Add reasoning effort bar
 ## Add retrying if rpm limit
 ## Add more local models
 
@@ -70,7 +69,7 @@ async def find_col(coltype, colnames):
 
 
 # --- Process types/models function ---
-async def figure_out(model, stype, syll, conc = ''):
+async def figure_out(model, stype, syll, conc = '', reason_effort = 'none'):
 	reply = 'Something went wrong.'
 
 	messages = ""
@@ -92,7 +91,7 @@ async def figure_out(model, stype, syll, conc = ''):
 	if (model in LOCAL_MODELS):
 		reply = await local_prompt(messages)
 	elif (model in REMOTE_MODELS):
-		reply, tokens = await remote_prompt(messages, model)
+		reply, tokens = await remote_prompt(messages, model, reason_effort)
 	else:
 		reply += " Wrong model."
 
@@ -108,8 +107,10 @@ async def do_logic():
 	syll = urllib.parse.unquote(data.get("syll", ""))
 	stype = urllib.parse.unquote(data.get("type", ""))
 	model = urllib.parse.unquote(data.get("model", ""))
+	reason_effort = urllib.parse.unquote(data.get("effort", "none"))
 
-	reply, tokens = await figure_out(model, stype, syll)
+
+	reply, tokens = await figure_out(model, stype, syll, reason_effort=reason_effort)
 
 	if tokens > 0:
 		with open('tokens.csv', 'a') as f:
@@ -125,6 +126,7 @@ async def do_more_logic():
 	file = urllib.parse.unquote(msg.get("file", ""))
 	stype = urllib.parse.unquote(msg.get("type", ""))
 	model = urllib.parse.unquote(msg.get("model", ""))
+	reason_effort = urllib.parse.unquote(msg.get("effort", "none"))
 
 	await websocket.send_json({"type": "started", "file": file})
 	try:
@@ -142,7 +144,7 @@ async def do_more_logic():
 
 		for i, syllo in syllos.iterrows():
 			try:
-				reply, tokens = await figure_out(model, stype, syllo[premcol], syllo.get(conccol, ''))
+				reply, tokens = await figure_out(model, stype, syllo[premcol], syllo.get(conccol, ''), reason_effort)
 				if (reply != ''):
 					pred = int(reply[-1]) if reply[-1].isdigit() else ""
 					if pred in [0, 1, "0", "1"] and validcol in syllo:
@@ -212,19 +214,24 @@ async def local_prompt(messages):
 
 
 # --- Remote AI function ---
-async def remote_prompt(messages, model):
+async def remote_prompt(messages, model, reason_effort):
 	client = Groq(
 		api_key=os.environ.get("GROQ_API_KEY"),
 	)
 
-	reason = False
+	reason = True
+	if reason_effort == 'none':
+		reason_effort = None
+		reason = False
 	if model == 'llama-3.3-70b-versatile':
+		reason_effort = None
 		reason = None
 
 	chat_completion = client.chat.completions.create(
 		messages=messages,
 		model=model,
-		include_reasoning=reason
+		include_reasoning=reason,
+		reasoning_effort=reason_effort
 	)
 	reply = chat_completion.choices[0].message.content
 	tokens = chat_completion.usage.completion_tokens
