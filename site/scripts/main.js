@@ -16,6 +16,7 @@
     const uploadDialog = document.getElementById("uploadDialog");
     const syllFile = document.getElementById("syllFile");
     const customSPrompt = document.getElementById("customSPrompt");
+    customSPrompt.textContent = 'System:\nYou are a professor of logic and your job is to evaluate syllogisms. Check if they\'re logically correct. Syllogisms can have more than 2 premises. Sometimes a name can appear using its synonyms. Premises do not have to be in order.\n\nUser:\nCheck this syllogism:\n{syllogism}{conclusion}\nAnd respond wether it is logically (not sematically) correct.\nProvide a brief, not long of a response!'
     const numSyll = document.getElementById("numSyll");
     const minPremise = document.getElementById('minPremise');
     const maxPremise = document.getElementById('maxPremise');
@@ -367,9 +368,21 @@
     if (typeEl) {
         typeEl.addEventListener('change', () => {
             if (typeEl.value == -1) {
-                customSPrompt.parentElement.classList.remove('hidden');
+                customSPrompt.readOnly = false;
+                customSPrompt.parentElement.setAttribute('open', '')
             } else {
-                customSPrompt.parentElement.classList.add('hidden');
+                customSPrompt.readOnly = true;
+                if (typeEl.value == 0) {
+                    customSPrompt.textContent = 'System:\nYou are a professor of logic and your job is to evaluate syllogisms. Check if they\'re logically correct. Syllogisms can have more than 2 premises. Sometimes a name can appear using its synonyms. Premises do not have to be in order.\n\nUser:\nCheck this syllogism:\n{syllogism}{conclusion}\nAnd respond wether it is logically (not sematically) correct.\nProvide a brief, not long of a response!';
+                } else if (typeEl.value == 1) {
+                    customSPrompt.textContent = 'System:\nYou are a professor of logic and your job is to evaluate syllogisms. Check if they\'re logically correct. Syllogisms can have more than 2 premises. Sometimes a name can appear using its synonyms. Premises do not have to be in order.\n\nUser:\nCheck this syllogism:\n{syllogism}{conclusion}\nAnd respond wether it is logically (not sematically) correct.\nIMPORTANT! RESPOND ONLY WITH EITHER 0 OR 1 WHERE 0 MEANS INCORRECT AND 1 MEANS CORRECT! DO NOT USE ANTHING ELSE IN YOUR RESPONSE. RESPOND ONLY WITH EITHER 0 OR 1!';
+                } else if (typeEl.value == 2) {
+                    customSPrompt.textContent = 'System:\nYou are a professor of logic and your job is to evaluate syllogisms. A - All x are y; E - No x are y; I - Some x are y; O - Some x are not y. Check if they\'re logically correct and explain their reasoning. Common checks:\n5 Rules (Classical Method)\n1. Middle Term Distribution (M): A middle term must be distributed (appear as the predicate of a general proposition or the subject of a negative proposition) in at least one premise.\n2. Avoiding Two Negative Premises: A valid conclusion cannot be drawn from two negative premises (e.g., "Some S are not P" and "No S is P").\n3. Negative Consistency: A negative premise implies a negative conclusion (if there is a negative premise, the conclusion must be negative).\n4. Assertion Consistency: Two affirmative premises (e.g., "Every A is B") imply an affirmative conclusion.\n5. Decomposition of Terms in the Conclusion: If a term is distributed in the conclusion, it must also be distributed in the premise from which it originates (e.g., S or P). Syllogisms can have more than 2 premises. Sometimes a name can appear using its synonyms. Premises do not have to be in order.\n\nUser:\nCheck these syllogism premises and make a conclusion based on them:\n{syllogism}\nProvide a brief, not long of a response!\nDO NOT REFER TO RULES BY THEIR NUMBERS/IDS!';
+                } else if (typeEl.value == 3) {
+                    customSPrompt.textContent = 'System:\nYou are a professor of logic and your job is to evaluate syllogisms. A - All x are y; E - No x are y; I - Some x are y; O - Some x are not y. Check if they\'re logically correct and explain their reasoning. Common checks:\n5 Rules (Classical Method)\n1. Middle Term Distribution (M): A middle term must be distributed (appear as the predicate of a general proposition or the subject of a negative proposition) in at least one premise.\n2. Avoiding Two Negative Premises: A valid conclusion cannot be drawn from two negative premises (e.g., "Some S are not P" and "No S is P").\n3. Negative Consistency: A negative premise implies a negative conclusion (if there is a negative premise, the conclusion must be negative).\n4. Assertion Consistency: Two affirmative premises (e.g., "Every A is B") imply an affirmative conclusion.\n5. Decomposition of Terms in the Conclusion: If a term is distributed in the conclusion, it must also be distributed in the premise from which it originates (e.g., S or P). Syllogisms can have more than 2 premises. Sometimes a name can appear using its synonyms. Premises do not have to be in order.\n\nUser:\nCheck this syllogism:\n{syllogism}{conclusion}\nProvide a brief, not long of a response!\nDO NOT REFER TO RULES BY THEIR NUMBERS/IDS!';
+                } else if (typeEl.value == 4) {
+                    customSPrompt.textContent = 'System:\nJesteś pomocnym asystentem';
+                }
             }
         });
     }
