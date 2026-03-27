@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SI-logizm - Login</title>
+    <style>
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;margin: 5px 0;
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            max-width: 80%;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body style="font-family: Arial, sans-serif; margin: 0; padding: 0;background-color: #f9f9f9;">
+    <div id="header" style="text-align: center; margin: 0; position: relative; padding: 20px 20px; background-color: #007bff; color: white;">
+        <h1>SI-logizm</h1>
+    </div>
+    <div id="auth-form" style="display: grid; padding: 20px; max-width: 60%; margin: 20px auto; background: #fff; border: 1px solid #ddd; border-radius: 5px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); text-align: center;">
+        {% if error %}
+            <p style="color:red;">{{ error }}</p>
+        {% endif %}
+        <form method="post" style="max-width: 95%; text-align: center;">
+            <h2 style>Login</h2>
+            <label for="username">Username</label><br>
+            <input type="text" name="username" class="inputField" style="margin-bottom: 10px" required><br>
+            <label for="password">Password  </label><br>
+            <input type="password" name="password" class="inputField" required><br>
+            <button type="submit" style="margin-top: 10px">Login</button>
+    </form>
+    </div>
+</body>

@@ -1,11 +1,14 @@
 # --- Imports ---
 import os
-from quart import Quart, render_template, request, jsonify, send_from_directory, Response, websocket
+from quart import Quart, render_template, request, jsonify, send_from_directory, Response, websocket, redirect, url_for, session
+from quart_auth import QuartAuth, login_required, login_user, logout_user, current_user, AuthUser
 from quart_rate_limiter import RateLimiter, rate_limit
 from datetime import timedelta
 import urllib.parse
+import ldap3
 import requests
 import httpx
+import ssl
 import uvicorn
 from datetime import datetime
 import pandas as pd
@@ -41,9 +44,197 @@ app = Quart(__name__, template_folder="pages")
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
 RateLimiter(app)
 
+# --- Session reset ---
+@app.before_request
+def make_session_non_permanent():
+	session.permanent = False
+
+# --- LDAP Configuration ---
+app.config['LDAP_HOST'] = os.environ.get('LDAP_HOST')
+app.config['LDAP_PORT'] = 636
+app.config['LDAP_USE_SSL'] = True
+app.config['LDAP_BASE_DN'] = os.environ.get('LDAP_BASE_DN')
+
+app.config['SECRET_KEY'] = os.environ.get('QUART_SECRET_KEY')
+
+cert_path = '/etc/ssl/certs/ca-certificates.crt'
+ca_cert_path = os.environ.get('LDAP_CA_CERTS_FILE', cert_path)
+app.config['LDAP_TLS_CA_CERTS_FILE'] = ca_cert_path
+
+app.config['LDAP_TLS_REQUIRE_CERT'] = ssl.CERT_REQUIRED
+
+app.config['LDAP_USER_DNS'] = [dn.strip() for dn in os.environ.get('LDAP_USER_DN', '').split(';') if dn.strip()]
+
+app.config['LDAP_USER_RDN_ATTR'] = 'uid'
+app.config['LDAP_USER_LOGIN_ATTR'] = 'uid'
+app.config['LDAP_USER_FULLNAME_ATTR'] = os.environ.get('LDAP_USER_FULLNAME_ATTR', 'cn')
+
+class User(AuthUser):
+	def __init__(self, identifier):
+		super().__init__(identifier)
+		profile = session.get('user_profile', {})
+		self.username = profile.get('username')
+		self.dn = profile.get('dn')
+		self.data = data = profile.get('attributes', {})
+
+	def get_id(self):
+		return self.dn
+
+	def get_fullname(self):
+		return self.data.get(app.config['LDAP_USER_FULLNAME_ATTR'], [self.username])[0]
+	
+	@property
+	def identifier(self) -> str:
+		return self.username
+	
+login_manager = QuartAuth(app, user_class=User)
+login_manager.login_view = "login"
+
+# --- End of LDAP Configuration ---
+
+
+# --- User Management ---
+@app.route('/login', methods=['GET', 'POST'])
+async def login():
+	if await current_user.is_authenticated:
+		return redirect(url_for('index'))
+
+	if request.method == 'POST':
+		form = await request.form
+		username = form.get('username').lower()
+		password = form.get('password')
+		app.logger.info(f"Attempting login for user: {username}")
+
+		if not username or not password:
+			app.logger.warning("Login attempt with missing username or password.")
+			return await render_template("auth.html", error="Missing username or password")
+
+		conn = None
+		bind_successful = False
+		user_dn_for_bind = None
+		base = None
+
+		try:
+			app.logger.debug("--- Manual LDAP Authentication ---")
+
+			user_dns_to_try = app.config.get('LDAP_USER_DNS', [])
+			if not user_dns_to_try:
+				app.logger.error("No LDAP_USER_DN configured for user authentication.")
+				return await render_template("auth.html", error="Server configuration error.")
+			
+			for user_base_dn in user_dns_to_try:
+				user_dn = f"{app.config['LDAP_USER_LOGIN_ATTR']}={username},{user_base_dn}"
+				app.logger.debug(f"Manual Auth: Constructed User DN: {user_dn}")
+
+				tls_config = ldap3.Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLSv1_2)
+
+				server = ldap3.Server(
+					app.config['LDAP_HOST'],
+					port=app.config['LDAP_PORT'],
+					use_ssl=app.config['LDAP_USE_SSL'],
+					tls=tls_config
+				)
+				app.logger.debug(f"Manual Auth: Connecting to server: {server.host}:{server.port} SSL={server.ssl}")
+
+				try:
+					conn = ldap3.Connection(
+						server,
+						user=user_dn,
+						password=password,
+						authentication=ldap3.SIMPLE,
+						auto_bind=True
+					)
+					if conn.bound:
+						bind_successful = True
+						user_dn_for_bind = user_dn
+						base = user_base_dn
+						app.logger.info(f"Manual Auth: Bind SUCCESSFUL for DN: {user_dn}")
+						break
+					else:
+						app.logger.warning(f"Manual Auth: Initial bind FAILED for DN: {user_dn}. Result: {conn.result}")
+				
+				except ldap3.core.exceptions.LDAPBindError as e:
+					app.logger.warning(f"Manual Auth: LDAPBindError for DN: {user_dn}: {e}")
+					continue
+				finally:
+					if conn and conn.bound and not bind_successful:
+						conn.unbind()
+
+			if bind_successful and conn:
+				search_base = base
+				search_filter = f"({app.config['LDAP_USER_LOGIN_ATTR']}={username})"
+				attributes_to_get = [app.config['LDAP_USER_FULLNAME_ATTR'], app.config['LDAP_USER_LOGIN_ATTR']]
+				app.logger.debug(f"Manual Auth: Searching for user attributes. Base='{search_base}', Filter='{search_filter}', Attrs={attributes_to_get}")
+
+				if conn.search(search_base=search_base,
+							   search_filter=search_filter,
+							   search_scope=ldap3.SUBTREE,
+							   attributes=attributes_to_get):
+
+					if len(conn.entries) == 1:
+						entry = conn.entries[0]
+						actual_user_dn = entry.entry_dn
+						app.logger.debug(f"Manual Auth: User entry found: {entry.entry_dn}")
+						app.logger.debug(f"Manual Auth: User attributes: {entry.entry_attributes_as_dict}")
+
+						user_data = {k: v[0] for k, v in entry.entry_attributes_as_dict.items() if v}
+
+						user_attributes_dict = {k: v[0] for k, v in entry.entry_attributes_as_dict.items() if v}
+
+						user_profile_for_session = {
+							'dn': actual_user_dn,
+							'username': username,
+							'attributes': user_attributes_dict
+						}
+						session['user_profile'] = user_profile_for_session
+						app.logger.debug(f"Manual Auth: Stored user profile in session for {username}")
+
+						user = User(username)
+						login_user(user)
+						app.logger.info(f"User {username} object created and logged in via Flask-Login.")
+						return redirect(url_for('index'))
+					else:
+						app.logger.error(f"Manual Auth: Search returned {len(conn.entries)} entries for filter '{search_filter}'. Expected 1.")
+						return await render_template("auth.html", error="Login failed: Could not uniquely identify user.")
+				else:
+					app.logger.error(f"Manual Auth: Search failed after successful bind. Filter='{search_filter}'. Result: {conn.result}")
+					return await render_template("auth.html", error="Login failed: Could not retrieve user data.")
+
+			else:
+				app.logger.warning(f"Manual Auth: Bind FAILED for user '{username}' against all configured DNs.")
+				if conn.result and conn.result.get('result') == 49:
+					return await render_template("auth.html", error="Invalid username or password")
+				else:
+					return await render_template("auth.html", error="LDAP bind failed (not invalid credentials).")
+
+		except ldap3.core.exceptions.LDAPException as e:
+			app.logger.error(f"Manual Auth: LDAPException during manual authentication: {e}", exc_info=True)
+			return await render_template("auth.html", error="An LDAP error occurred during login.")
+		except Exception as e:
+			app.logger.error(f"Manual Auth: Non-LDAP Exception during manual authentication: {e}", exc_info=True)
+			return await render_template("auth.html", error="An unexpected error occurred during login.")
+		finally:
+			if conn and conn.bound:
+				conn.unbind()
+			app.logger.debug("--- Finished Manual LDAP Authentication ---")
+
+	return await render_template("auth.html")
+
+@app.route('/logout')
+@login_required
+async def logout():
+	session.pop('user_profile', None)
+	logout_user()
+	app.logger.info("User logged out.")
+	return redirect(url_for('login'))
+
+# --- End of User Management ---
+
 
 # --- Main site ---
 @app.route("/")
+@login_required
+@rate_limit(1, timedelta(seconds=2))
 async def index():
 	return await render_template("index.html")
 
@@ -102,7 +293,8 @@ async def figure_out(model, stype, syll, conc = '', reason_effort = 'none', ws =
 
 # --- Ask AI endpoint ---
 @app.route("/api/dologic", methods=["POST"])
-@rate_limit(1, timedelta(seconds=3))
+@login_required
+@rate_limit(1, timedelta(seconds=1))
 async def do_logic():
 	data = await request.get_json()
 
@@ -123,6 +315,8 @@ async def do_logic():
 
 # -- Process file endpoint ---
 @app.websocket("/ws/domorelogic")
+@login_required
+@rate_limit(1, timedelta(seconds=1))
 async def do_more_logic():	
 	msg = await websocket.receive_json()
 	file = urllib.parse.unquote(msg.get("file", ""))
@@ -311,6 +505,7 @@ async def generate_syllo(
 
 
 @app.route("/api/generateone", methods=["POST"])
+@login_required
 @rate_limit(1, timedelta(seconds=1))
 async def generate_one():
 	data = await request.get_json()
@@ -330,6 +525,8 @@ async def generate_one():
 
 
 @app.websocket("/ws/generatemany")
+@login_required
+@rate_limit(1, timedelta(seconds=1))
 async def generate_many():
 	msg = await websocket.receive_json()
 	num = urllib.parse.unquote(msg.get("num", ""))
@@ -356,24 +553,34 @@ async def generate_many():
 
 # --- Access to files ---
 @app.route("/scripts/<filename>")
+@login_required
+@rate_limit(1, timedelta(seconds=1))
 async def serve_scripts(filename):
 	return await send_from_directory(os.path.join(".", "scripts"), filename)
 
 @app.route("/styles/<filename>")
+@login_required
+@rate_limit(1, timedelta(seconds=1))
 async def serve_styles(filename):
 	return await send_from_directory(os.path.join(".", "styles"), filename)
 
 @app.route("/uploads/<filename>")
+@login_required
+@rate_limit(1, timedelta(seconds=1))
 async def server_upload(filename):
 	return await send_from_directory(os.path.join(".", "uploads"), filename)
 
 @app.route("/results/<filename>")
+@login_required
+@rate_limit(1, timedelta(seconds=1))
 async def server_download(filename):
 	return await send_from_directory(os.path.join(".", "results"), filename)
 
 
 # Upload section
 @app.route('/api/upload-syllos', methods=['POST'])
+@login_required
+@rate_limit(1, timedelta(seconds=1))
 async def upload_file():
 
 	files = await request.files
@@ -409,6 +616,10 @@ async def upload_file():
 async def request_entity_too_large(error):
 	app.logger.warning(f"Upload failed: File too large (413). Limit is {app.config.get('MAX_CONTENT_LENGTH') / (1024*1024)}MB.")
 	return jsonify(success=False, error="File is too large. Please upload a file smaller than {}MB.".format(app.config.get('MAX_CONTENT_LENGTH') // (1024*1024)), limit=app.config.get('MAX_CONTENT_LENGTH') // (1024*1024)), 413
+
+@app.errorhandler(401)
+async def _redirect_unauthorized(e):
+	return redirect(url_for('login'))
 
 
 # --- Run ---

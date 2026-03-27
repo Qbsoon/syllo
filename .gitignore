@@ -1,6 +1,7 @@
 .env
 .venv
 llama/
+llama-swap/
 models/
 __pycache__/
 site/uploads/*
