@@ -23,7 +23,7 @@ import traceback
 load_dotenv()
 
 # --- 'Static' values ---
-LOCAL_MODELS = ['qwen3_14b_q5km', 'pllum_12b','bielik_11b_v3]
+LOCAL_MODELS = ['qwen3_14', 'pllum_12b','bielik_11b_v3']
 REMOTE_MODELS = ['llama-3.3-70b-versatile', 
 				 'openai/gpt-oss-20b', 
 				 'openai/gpt-oss-120b', 
@@ -402,7 +402,7 @@ async def do_more_logic():
 # --- Local AI function ---
 async def local_prompt(messages, model):
 	async with httpx.AsyncClient() as client:
-		response = await client.post(LCPP_URL, json={'model': model, messages': messages, 'max_tokens': -1}, timeout=2400.0)
+		response = await client.post(LCPP_URL, json={'model': model, 'messages': messages, 'max_tokens': -1}, timeout=2400.0)
 	reply = response.json()['choices'][0]['message']['content']
 	if "</think>" in reply:
 		reply = reply.split("</think>")[1].strip()
