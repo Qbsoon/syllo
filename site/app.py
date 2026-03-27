@@ -23,7 +23,7 @@ import traceback
 load_dotenv()
 
 # --- 'Static' values ---
-LOCAL_MODELS = ['qwen3_14b_q5km']
+LOCAL_MODELS = ['qwen3_14b_q5km', 'pllum_12b']
 REMOTE_MODELS = ['llama-3.3-70b-versatile', 
 				 'openai/gpt-oss-20b', 
 				 'openai/gpt-oss-120b', 
@@ -282,7 +282,7 @@ async def figure_out(model, stype, syll, conc = '', reason_effort = 'none', ws =
 	tokens = 0
 
 	if (model in LOCAL_MODELS):
-		reply = await local_prompt(messages)
+		reply = await local_prompt(messages, model)
 	elif (model in REMOTE_MODELS):
 		reply, tokens = await remote_prompt(messages, model, reason_effort, ws)
 	else:
@@ -400,7 +400,7 @@ async def do_more_logic():
 
 
 # --- Local AI function ---
-async def local_prompt(messages):
+async def local_prompt(messages, model):
 	async with httpx.AsyncClient() as client:
 		response = await client.post(LCPP_URL, json={'messages': messages, 'max_tokens': -1}, timeout=2400.0)
 	reply = response.json()['choices'][0]['message']['content']
