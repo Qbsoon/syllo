@@ -679,40 +679,50 @@ class LangaugeFragmentSAT:
     return df
 
 
-def main():
-    args = parse_args()
+# Running the engine
+def run_engine(
+    num_datapoints: int,
+    sampling_data: Union[str, List[Dict[str, Any]]],
+    fragment: str,
+    min_a: int,
+    max_a: int,
+    min_ab: float = 0.35,
+    max_ab: float = 0.65,
+    timeout: int = 10000
+) -> pd.DataFrame:
+    """Wrapper for the NLSAT engine to be called by the Quart server.
 
+    Args:
+        num_datapoints: Number of syllogisms to generate.
+        sampling_data: Sampling distribution as a JSON string or list of dicts.
+        fragment: Name of the language fragment (e.g., 'syllogistic').
+        min_a: Minimum number of unary predicates.
+        max_a: Maximum number of unary predicates.
+        min_ab: Minimum probability for phase change region.
+        max_ab: Maximum probability for phase change region.
+        timeout: Z3 solver timeout in milliseconds.
+
+    Returns:
+        pd.DataFrame: The generated dataset.
+    """
     set_param(proof=True)
-    ctx = Context()
-    Z = IntSort()
-    B = BoolSort()
-
     x, y = Ints('x y')
+    Z, B = IntSort(), BoolSort()
 
-    functions = {}
-    for f in nouns:
-        functions[f] = Function(f, Z, B)
+    functions = {f: Function(f, Z, B) for f in nouns}
+    functions.update({f: Function(f, Z, Z, B) for f in verbs})
 
-    for f in verbs:
-        functions[f] = Function(f, Z, Z, B)
+    if isinstance(sampling_data, str):
+        df_agg = pd.read_json(io.StringIO(sampling_data))
+    else:
+        df_agg = pd.DataFrame(sampling_data)
 
-    df_agg = pd.read_csv(args.sampling_file)
-    df_hard = df_agg[(df_agg['is_sat'] < args.max_ab) & (df_agg['is_sat'] > args.min_ab)]
+    df_hard = df_agg[(df_agg['is_sat'] < max_ab) & (df_agg['is_sat'] > min_ab)]
 
-    # Inicjalizacja z poprawnymi nazwami
-    satFragment = LangaugeFragmentSAT(functions,
-                                       lexicon, 
-                                       args.fragment, 
-                                       df_hard, 
-                                       min_a=args.min_a, 
-                                       max_a=args.max_a, 
-                                       min_b=args.min_b, 
-                                       max_b=args.max_b, 
-                                       timeout=args.time_out, 
-                                       prob=args.prob)
+    sat_fragment = LangaugeFragmentSAT(
+        functions, fragment, df_hard, 
+        min_a=min_a, max_a=max_a, timeout=timeout
+    )
     
-    df = satFragment.create_df(nouns, verbs, x, y, num_datapoints=args.num_datapoints)
-    df.to_csv(args.output_file, index=False)
-
-if __name__ == "__main__":
-    main()
+    df = sat_fragment.create_df(nouns, verbs, x, y, num_datapoints=num_datapoints)
+    return df
