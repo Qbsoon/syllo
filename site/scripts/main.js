@@ -381,7 +381,7 @@
                 } else if (typeEl.value == 3) {
                     customSPrompt.textContent = 'System:\nYou are a professor of logic and your job is to evaluate syllogisms. A - All x are y; E - No x are y; I - Some x are y; O - Some x are not y. Check if they\'re logically correct and explain their reasoning. Common checks:\n5 Rules (Classical Method)\n1. Middle Term Distribution (M): A middle term must be distributed (appear as the predicate of a general proposition or the subject of a negative proposition) in at least one premise.\n2. Avoiding Two Negative Premises: A valid conclusion cannot be drawn from two negative premises (e.g., "Some S are not P" and "No S is P").\n3. Negative Consistency: A negative premise implies a negative conclusion (if there is a negative premise, the conclusion must be negative).\n4. Assertion Consistency: Two affirmative premises (e.g., "Every A is B") imply an affirmative conclusion.\n5. Decomposition of Terms in the Conclusion: If a term is distributed in the conclusion, it must also be distributed in the premise from which it originates (e.g., S or P). Syllogisms can have more than 2 premises. Sometimes a name can appear using its synonyms. Premises do not have to be in order.\n\nUser:\nCheck this syllogism:\n{syllogism}{conclusion}\nProvide a brief, not long of a response!\nDO NOT REFER TO RULES BY THEIR NUMBERS/IDS!';
                 } else if (typeEl.value == 4) {
-                    customSPrompt.textContent = 'System:\nJesteś pomocnym asystentem';
+                    customSPrompt.textContent = 'System:\nJesteś pomocnym asystentem\n\nUser:\nCzy to rozumowanie jest poprawne: {syllogism}{conclusion\nPrzedstaw krótkie wyjaśnienie swojego rozumowania.\nDodaj na końcu swojej wypowiedzi cyfrę 0 dla nieprawidłowego rozumowania lub 1 dla prawidłowego rozumowania.';
                 }
             }
         });
@@ -591,7 +591,7 @@
 
     if (reasonEffort && modelEl) {
         modelEl.addEventListener('change', () => {
-            if (['openai/gpt-oss-20b','openai/gpt-oss-120b','qwen/qwen3-32b'].includes(modelEl.value)) {
+            if (['openai/gpt-oss-20b','openai/gpt-oss-120b','qwen/qwen3-32b','glm-5.1','glm-5','glm-5-turbo','glm-4.7','glm-4.7-flash'].includes(modelEl.value)) {
                 reasonEffort.parentElement.classList.remove('hidden');
             } else {
                 reasonEffort.parentElement.classList.add('hidden');

@@ -15,6 +15,8 @@ import pandas as pd
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from groq import AsyncGroq, APIStatusError
+from zai import ZaiClient
+import zai
 import asyncio
 from time import time
 import traceback
@@ -24,12 +26,13 @@ load_dotenv()
 
 # --- 'Static' values ---
 LOCAL_MODELS = ['qwen3_14', 'pllum_12b','bielik_11b_v3']
-REMOTE_MODELS = ['llama-3.3-70b-versatile', 
+GROQ_REMOTE_MODELS = ['llama-3.3-70b-versatile', 
 				 'openai/gpt-oss-20b', 
 				 'openai/gpt-oss-120b', 
 				 'qwen/qwen3-32b',
 				 'llama-3.1-8b-instant',
 				 'meta-llama/llama-4-scout-17b-16e-instruct']
+ZAI_REMOTE_MODELS = ['glm-5.1', 'glm-5', 'glm-5-turbo', 'glm-4.7', 'glm-4.7-flash']
 UPLOAD_ARCHIVE = "uploads"
 GENERATED_ARCHIVE = "generated"
 RESULTS_ARCHIVE = 'results'
@@ -283,7 +286,7 @@ async def figure_out(model, stype, syll, conc = '', reason_effort = 'none', ws =
 
 	if (model in LOCAL_MODELS):
 		reply = await local_prompt(messages, model)
-	elif (model in REMOTE_MODELS):
+	elif (model in GROQ_REMOTE_MODELS or model in ZAI_REMOTE_MODELS):
 		reply, tokens = await remote_prompt(messages, model, reason_effort, ws)
 	else:
 		reply += " Wrong model."
@@ -323,6 +326,7 @@ async def do_more_logic():
 	stype = urllib.parse.unquote(msg.get("type", ""))
 	model = urllib.parse.unquote(msg.get("model", ""))
 	reason_effort = urllib.parse.unquote(msg.get("effort", "none"))
+	setname = urllib.parse.unquote(msg.get("setname", "none"))
 
 	await websocket.send_json({"type": "started", "file": file})
 	try:
@@ -385,7 +389,7 @@ async def do_more_logic():
 				}
 			})
 	
-		new_filename = f"result_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"
+		new_filename = f"result_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv" if setname == None else setname
 		results_filepath = os.path.join(RESULTS_ARCHIVE, new_filename)
 		syllos.to_csv(results_filepath, index=False)
 		await websocket.send_json({"type": "done", "success": True, "file": new_filename})
@@ -411,7 +415,6 @@ async def local_prompt(messages, model):
 
 # --- Remote AI function ---
 async def remote_prompt(messages, model, reason_effort, ws = None):
-
 	reason = True
 	if reason_effort == 'none':
 		reason_effort = None
@@ -419,21 +422,49 @@ async def remote_prompt(messages, model, reason_effort, ws = None):
 	if model in ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'meta-llama/llama-4-scout-17b-16e-instruct']:
 		reason_effort = None
 		reason = None
-	for i in range(1, 12):
-		try:
-			client = AsyncGroq(
-				api_key=os.environ.get("GROQ_API_KEY"),
-			)
-			chat_completion = await client.chat.completions.create(
-				messages=messages,
-				model=model,
-				include_reasoning=reason,
-				reasoning_effort=reason_effort
-			)
-			break
-		except APIStatusError as e:
-			if e.status_code == 429:
-				if i <= 10:
+	if model in GROQ_REMOTE_MODELS:
+		for i in range(1, 12):
+			try:
+				client = AsyncGroq(
+					api_key=os.environ.get("GROQ_API_KEY"),
+				)
+				chat_completion = await client.chat.completions.create(
+					messages=messages,
+					model=model,
+					include_reasoning=reason,
+					reasoning_effort=reason_effort
+				)
+				break
+			except APIStatusError as e:
+				if e.status_code == 429:
+					if i <= 10:
+						if ws is not None:
+							await ws.send_json({"type": "rate_limit", "num": i})
+						await asyncio.sleep(5)
+						continue
+					else:
+						if ws is not None:
+							await ws.send_json({"type": "rate_limit_stop"})
+				else:
+					raise e
+			except Exception as e:
+				raise e
+	elif model in ZAI_REMOTE_MODELS:
+		for i in range(1, 12):
+			try:
+				client = ZaiClient(
+					api_key=os.environ.get('ZAI_API_KEY'),
+					base_url='https://api.z.ai/api/coding/paas/v4'
+				)
+				chat_completion = await asyncio.to_thread(
+					client.chat.completions.create,
+					model=model,
+					messages=messages,
+					thinking={'type':'enabled' if reason else 'disabled'}
+				)
+				break
+			except zai.core.APIReachLimitError as e:
+				if i<= 10:
 					if ws is not None:
 						await ws.send_json({"type": "rate_limit", "num": i})
 					await asyncio.sleep(5)
@@ -441,10 +472,8 @@ async def remote_prompt(messages, model, reason_effort, ws = None):
 				else:
 					if ws is not None:
 						await ws.send_json({"type": "rate_limit_stop"})
-			else:
+			except Exception as e:
 				raise e
-		except Exception as e:
-			raise e
 
 	reply = chat_completion.choices[0].message.content
 	tokens = chat_completion.usage.completion_tokens
@@ -624,6 +653,7 @@ async def _redirect_unauthorized(e):
 
 # --- Run ---
 if __name__ == "__main__":
+	load_dotenv()
 	uvicorn.run(
 		"app:app",
 		host=os.environ.get("MAIN_ADDR"),
