@@ -17,6 +17,7 @@
     const syllFile = document.getElementById("syllFile");
     const customSPrompt = document.getElementById("customSPrompt");
     customSPrompt.textContent = 'System:\nYou are a professor of logic and your job is to evaluate syllogisms. Check if they\'re logically correct. Syllogisms can have more than 2 premises. Sometimes a name can appear using its synonyms. Premises do not have to be in order.\n\nUser:\nCheck this syllogism:\n{syllogism}{conclusion}\nAnd respond wether it is logically (not sematically) correct.\nProvide a brief, not long of a response!'
+    const genLang = document.getElementById("genLang");
     const numSyll = document.getElementById("numSyll");
     const minPremise = document.getElementById('minPremise');
     const maxPremise = document.getElementById('maxPremise');
@@ -397,6 +398,7 @@
                 return;
             }
 
+            const lang = encodeURIComponent(genLang.value);
             const minA = encodeURIComponent(Number(minPremise.value) + 1);
             const maxA = encodeURIComponent(Number(maxPremise.value) + 1);
 
@@ -418,7 +420,7 @@
                     const response = await fetch('/api/generateone', {
                         method: 'POST',
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ minA, maxA }),
+                        body: JSON.stringify({ lang, minA, maxA }),
                     });
                     if (response.status === 429) {
                         genTStatusText.textContent = "Ograniczenie przepustowości - poczekaj 3 sekundy.";
@@ -452,7 +454,7 @@
                     const ws = new WebSocket(wsUrl);
 
                     ws.addEventListener('open', () => {
-                        ws.send(JSON.stringify({ num, minA, maxA }));
+                        ws.send(JSON.stringify({ lang, num, minA, maxA }));
                         genIStatusText.textContent = " Połączono. Przetwarzanie...";
                     });
 

@@ -720,7 +720,7 @@ def run_engine(
     df_hard = df_agg[(df_agg['is_sat'] < max_ab) & (df_agg['is_sat'] > min_ab)]
 
     sat_fragment = LangaugeFragmentSAT(
-        functions, fragment, df_hard, 
+        functions, lexicon, language_fragment=fragment, df_hard=df_hard, 
         min_a=min_a, max_a=max_a, timeout=timeout
     )
     

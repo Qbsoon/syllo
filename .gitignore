@@ -9,4 +9,5 @@ site/generated/*
 site/results/*
 !site/uploads/template.csv
 site/NLSAT_engine/history/*
+site/NLSAT_engine_pl/history/*
 site/tokens.csv

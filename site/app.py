@@ -484,6 +484,7 @@ async def remote_prompt(messages, model, reason_effort, ws = None):
 from typing import Any, Dict, List, Union
 
 async def generate_syllo(
+	lang: str,
 	num: int, 
 	sampling: Union[str, List[Dict[str, Any]]], 
 	min_a: int, 
@@ -492,6 +493,7 @@ async def generate_syllo(
 	"""Generates syllogisms using the NL-SAT engine and saves to history.
 
 	Args:
+		lang: Language of the syllogisms (pl/en).
 		num: Number of syllogisms to generate.
 		sampling: Sampling data (JSON string or list).
 		min_a: Minimum unary predicates.
@@ -501,14 +503,15 @@ async def generate_syllo(
 		List[Dict[str, Any]]: Array of objects with premises, conclusion, and valid(sat) status.
 	"""
 	from NLSAT_engine.data_construction import run_engine
+	from NLSAT_engine_pl.data_construction_pl import run_engine as run_engine_pl
 
-	engine_path = os.path.join("NLSAT_engine")
+	engine_path = os.path.join("NLSAT_engine_pl" if lang == 'pl' else "NLSAT_engine")
 	history_path = os.path.join(engine_path, "history")
 	os.makedirs(history_path, exist_ok=True)
 
 	# Use asyncio.to_thread to run the blocking run_engine function without blocking the event loop
 	df = await asyncio.to_thread(
-		run_engine, 
+		run_engine_pl if lang == 'pl' else run_engine, 
 		num_datapoints=num, 
 		sampling_data=sampling, 
 		fragment="syllogistic", 
@@ -539,12 +542,13 @@ async def generate_syllo(
 async def generate_one():
 	data = await request.get_json()
 
-	minA = urllib.parse.unquote(data.get("minA", ""))
-	maxA = urllib.parse.unquote(data.get("maxA", ""))
+	lang = urllib.parse.unquote(data.get("lang", "en"))
+	minA = urllib.parse.unquote(data.get("minA", "2"))
+	maxA = urllib.parse.unquote(data.get("maxA", "2"))
 
 	sampling = [{"m/a": 1.0, "m/b": 3.0, "is_sat": 0.61}]
 	try:
-		syll = await generate_syllo(num=1, sampling=sampling, min_a=int(minA), max_a=int(maxA))
+		syll = await generate_syllo(lang=lang, num=1, sampling=sampling, min_a=int(minA), max_a=int(maxA))
 		result = "".join((prem.strip().capitalize() + (" " if prem.strip().endswith(".") else (". "))) for prem in syll[0]['premises'])
 		result += syll[0]['conclusion'].strip().capitalize() + ("" if syll[0]['conclusion'].strip().endswith(".") else ("."))
 		app.logger.info(f"Generated syllogism: {result}")
@@ -558,13 +562,14 @@ async def generate_one():
 @rate_limit(1, timedelta(seconds=1))
 async def generate_many():
 	msg = await websocket.receive_json()
-	num = urllib.parse.unquote(msg.get("num", ""))
-	minA = urllib.parse.unquote(msg.get("minA", ""))
-	maxA = urllib.parse.unquote(msg.get("maxA", ""))
+	lang = urllib.parse.unquote(msg.get("lang", "en"))
+	num = urllib.parse.unquote(msg.get("num", "5"))
+	minA = urllib.parse.unquote(msg.get("minA", "2"))
+	maxA = urllib.parse.unquote(msg.get("maxA", "2"))
 
 	sampling = [{"m/a": 1.0, "m/b": 3.0, "is_sat": 0.61}]
 	try:
-		result = await generate_syllo(num=int(num), sampling=sampling, min_a=int(minA), max_a=int(maxA))
+		result = await generate_syllo(lang=lang, num=int(num), sampling=sampling, min_a=int(minA), max_a=int(maxA))
 		for row in result:
 			row['premises'] = " ".join((prem.strip().capitalize() + ("" if prem.strip().endswith(".") else ("."))) for prem in row['premises'])
 			row['conclusion'] = row['conclusion'].strip().capitalize() + ("" if row['conclusion'].strip().endswith(".") else ("."))
